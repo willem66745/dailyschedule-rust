@@ -118,6 +118,11 @@ impl <'a>Schedule<'a> {
         self.schedule.keys().cloned().nth(0)
     }
 
+    /// Peek for next event
+    pub fn peek_event(&self) -> Option<Timespec> {
+        self.schedule.keys().cloned().nth(0)
+    }
+
     // TODO remove
     pub fn print_keys(&self) {
         for k in self.schedule.keys() {
