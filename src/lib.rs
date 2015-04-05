@@ -9,6 +9,10 @@ use rand::{Rng, thread_rng};
 use zoneinfo::{ZoneInfo, ZoneInfoElement};
 use std::io::Result;
 
+/// Represents abstract action identifier
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ScheduleContext(pub usize);
+
 /// Represents a fixed moment in a day
 #[derive(Debug)]
 pub enum ScheduleTime {
@@ -109,13 +113,17 @@ impl std::fmt::Display for ScheduleMoment {
 }
 
 /// Represents a moment and an specific action in a day
-pub struct ScheduleEvent<'a>(pub ScheduleMoment, pub &'a ScheduleAction);
+struct ScheduleEvent<'a> {
+    moment: ScheduleMoment, 
+    action: &'a ScheduleAction,
+    context: ScheduleContext
+}
 
 impl <'a>ScheduleEvent<'a> {
     /// Determine timestamp for event
     fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Timespec {
-        match self.0 {
+        match self.moment {
             ScheduleMoment::Fixed(ref moment) =>
                 moment.create_timestamp(ut_midnight_reference, localtime),
             ScheduleMoment::Fuzzy(ref m1, ref m2) => {
@@ -142,7 +150,7 @@ impl <'a>ScheduleEvent<'a> {
 
 pub trait ScheduleAction {
     /// Perform a action (in a day)
-    fn kick(&self, timestamp: &Timespec, event: &ScheduleMoment);
+    fn kick(&self, timestamp: &Timespec, event: &ScheduleMoment, kick: &ScheduleContext);
 }
 
 /// Represents multiple moments in a day
@@ -172,8 +180,15 @@ impl <'a>Schedule<'a> {
     }
 
     /// Add a (abstract) moment and action in a day
-    pub fn add_event(&mut self, moment: ScheduleMoment, action: &'a ScheduleAction) {
-        self.events.push(Rc::new(ScheduleEvent(moment, action)));
+    pub fn add_event(&mut self,
+                     moment: ScheduleMoment,
+                     action: &'a ScheduleAction,
+                     context: ScheduleContext) {
+        self.events.push(Rc::new(ScheduleEvent {
+            moment: moment,
+            action: action,
+            context: context
+        }));
     }
 
     /// Determine next zone info state
@@ -213,7 +228,7 @@ impl <'a>Schedule<'a> {
         // kick the current event...
         if let Some(timestamp) = past_events.last() {
             if let Some(schedule_event) = self.schedule.get(timestamp) {
-                schedule_event.1.kick(&timestamp, &schedule_event.0);
+                schedule_event.action.kick(&timestamp, &schedule_event.moment, &schedule_event.context);
             }
         }
 
@@ -233,7 +248,7 @@ impl <'a>Schedule<'a> {
     // TODO remove
     pub fn print_keys(&self) {
         for k in self.schedule.keys() {
-            println!("{} {}", at_utc(*k).rfc822(), self.schedule.get(k).unwrap().0);
+            println!("{} {}", at_utc(*k).rfc822(), self.schedule.get(k).unwrap().moment);
         }
     }
 }
