@@ -24,7 +24,9 @@ enum LocalTimeState {
     // Current zoneinfo specifies no future daylight saving time change is expected
     NoChangePending(ZoneInfoElement),
     // Daylight saving time change is pending
-    ChangePending(Timespec, ZoneInfoElement, ZoneInfoElement)
+    ChangePending(Timespec, // transistion time
+                  ZoneInfoElement, // zone information before transisition time
+                  ZoneInfoElement) // zone information at and after transition time
 }
 
 impl ScheduleTime {
@@ -38,12 +40,12 @@ impl ScheduleTime {
     }
 
     /// Convert schedule time to actual time stamp
-    fn create_timestamp(&self, midnight_reference: Timespec,
+    fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Timespec {
         let ut_offset = match *localtime {
             LocalTimeState::NoChangePending(ref info) => info.ut_offset,
             LocalTimeState::ChangePending(transition_time, ref before, ref after) => {
-                if midnight_reference < transition_time {
+                if ut_midnight_reference < transition_time {
                     before.ut_offset
                 }
                 else {
@@ -53,7 +55,7 @@ impl ScheduleTime {
             _ => unreachable!()
         };
 
-        midnight_reference
+        ut_midnight_reference
             + Duration::hours(self.hours as i64)
             + Duration::minutes(self.minutes as i64)
             + Duration::seconds(self.seconds as i64)
@@ -74,16 +76,16 @@ pub struct ScheduleEvent<'a>(pub ScheduleMoment, pub &'a ScheduleAction);
 
 impl <'a>ScheduleEvent<'a> {
     /// Determine timestamp for event
-    fn create_timestamp(&self, midnight_reference: Timespec,
+    fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Timespec {
         match self.0 {
             ScheduleMoment::Fixed(ref moment) =>
-                moment.create_timestamp(midnight_reference, localtime),
+                moment.create_timestamp(ut_midnight_reference, localtime),
             ScheduleMoment::Fuzzy(ref m1, ref m2) => {
                 // pick a time between both given moment
                 let mut rng = rand::thread_rng();
-                let t1 = m1.create_timestamp(midnight_reference, localtime);
-                let t2 = m2.create_timestamp(midnight_reference, localtime);
+                let t1 = m1.create_timestamp(ut_midnight_reference, localtime);
+                let t2 = m2.create_timestamp(ut_midnight_reference, localtime);
                 let t_start = if t1 >= t2 {t2} else {t1};
                 let t_end = if t1 >= t2 {t1} else {t2};
                 let duration = t_end - t_start;
@@ -142,25 +144,25 @@ impl <'a>Schedule<'a> {
     }
 
     /// Update the schedule for 24 hours
-    pub fn update_schedule(&mut self, midnight_reference: Timespec) {
+    pub fn update_schedule(&mut self, ut_midnight_reference: Timespec) {
         match self.localtime {
             LocalTimeState::Unknown =>
-                self.localtime = self.new_change_state(midnight_reference),
+                self.localtime = self.new_change_state(ut_midnight_reference),
             LocalTimeState::ChangePending(time, _, _) => {
-                if time >= midnight_reference {
-                    self.localtime = self.new_change_state(midnight_reference);
+                if time >= ut_midnight_reference {
+                    self.localtime = self.new_change_state(ut_midnight_reference);
                 }
             },
             _ => {}
         }
 
         for event in &self.events {
-            let timestamp = event.create_timestamp(midnight_reference, &self.localtime);
+            let timestamp = event.create_timestamp(ut_midnight_reference, &self.localtime);
             self.schedule.insert(timestamp, event.clone());
         }
     }
 
-    /// Consume schedule until now and kick last or current event
+    /// Consume schedule until now and kick last or current event and returns next event time
     pub fn kick_event(&mut self, now: Timespec) -> Option<Timespec> {
         let past_events: Vec<Timespec> = self.schedule.keys().filter(|&k| *k <= now).cloned().collect();
 
@@ -179,7 +181,7 @@ impl <'a>Schedule<'a> {
         self.schedule.keys().cloned().nth(0)
     }
 
-    /// Peek for next event
+    /// Peek when next event will happen
     pub fn peek_event(&self) -> Option<Timespec> {
         self.schedule.keys().cloned().nth(0)
     }
