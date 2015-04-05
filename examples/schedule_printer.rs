@@ -2,7 +2,7 @@ extern crate dailyschedule;
 extern crate time;
 
 use dailyschedule::*;
-use time::{Timespec, at_utc};
+use time::{Timespec, at_utc, Duration};
 
 struct PrintOnAction;
 
@@ -30,6 +30,8 @@ fn main() {
                                              ScheduleTime::new(11,0,0)), &action_on_handler);
     schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(12,0,0),
                                              ScheduleTime::new(13,0,0)), &action_off_handler);
+    schedule.add_event(ScheduleMoment::ByClosure(Box::new(|_| ScheduleTime::new(14,0,0)), Duration::minutes(1)), &action_on_handler);
+    schedule.add_event(ScheduleMoment::ByClosure(Box::new(|_| ScheduleTime::new(15,0,0)), Duration::minutes(1)), &action_off_handler);
     schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(19,0,0)), &action_on_handler);
     schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(21,0,0)), &action_off_handler);
     schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(22,0,0)), &action_on_handler);

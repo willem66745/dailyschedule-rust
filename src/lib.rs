@@ -94,7 +94,7 @@ impl std::fmt::Display for ScheduleTime {
 pub enum ScheduleMoment {
     Fixed(ScheduleTime),
     Fuzzy(ScheduleTime, ScheduleTime),
-    ByClosure(/*closure*/ Duration) // TODO: implement
+    ByClosure(Box<Fn(Timespec) -> ScheduleTime>, Duration)
 }
 
 impl std::fmt::Display for ScheduleMoment {
@@ -102,7 +102,8 @@ impl std::fmt::Display for ScheduleMoment {
         match self {
             &ScheduleMoment::Fixed(ref t) => write!(fmt, "{}", t),
             &ScheduleMoment::Fuzzy(ref b, ref a) => write!(fmt, "{} ~ {}", b, a),
-            _ => unreachable!()
+            &ScheduleMoment::ByClosure(_, ref variance) =>
+                write!(fmt, "dynamic ~{}s", variance.num_seconds()),
         }
     }
 }
@@ -127,7 +128,14 @@ impl <'a>ScheduleEvent<'a> {
                 let duration = t_end - t_start;
                 t_start + Duration::seconds(rng.gen_range(0, duration.num_seconds()))
             }
-            _ => panic!("not implemented!") // TODO: add by closure
+            ScheduleMoment::ByClosure(ref func, ref variance) => {
+                let moment = func(ut_midnight_reference);
+                // generate a offset based on variance compared to the generated moment
+                let mut rng = rand::thread_rng();
+                let offset = rng.gen_range(0, variance.num_seconds());
+                let offset = Duration::seconds(variance.num_seconds() / 2 - offset);
+                moment.create_timestamp(ut_midnight_reference, localtime) + offset
+            }
         }
     }
 }
