@@ -24,7 +24,7 @@ fn main() {
     let action_on_handler = PrintOnAction;
     let action_off_handler = PrintOffAction;
 
-    let mut schedule = Schedule::new();
+    let mut schedule = Schedule::new().unwrap();
 
     schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(10,00),
                                              ScheduleTime::new(11,00)), &action_on_handler);
