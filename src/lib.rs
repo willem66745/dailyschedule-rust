@@ -76,12 +76,35 @@ impl ScheduleTime {
     }
 }
 
+impl std::fmt::Display for ScheduleTime {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let duration = match self {
+            &ScheduleTime::UtcTime(d) => d,
+            &ScheduleTime::LocalTime(d) => d,
+        };
+        try!(write!(fmt, "{:02}:{:02}:{:02}", duration.num_hours(), duration.num_minutes() % 60, duration.num_seconds() % 60));
+        if let &ScheduleTime::UtcTime(_) = self {
+            try!(write!(fmt, " (UTC)"));
+        }
+        Ok(())
+    }
+}
+
 /// Represent a (abstract) moment in a day
-#[derive(Debug)]
 pub enum ScheduleMoment {
     Fixed(ScheduleTime),
     Fuzzy(ScheduleTime, ScheduleTime),
     ByClosure(/*closure*/ Duration) // TODO: implement
+}
+
+impl std::fmt::Display for ScheduleMoment {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &ScheduleMoment::Fixed(ref t) => write!(fmt, "{}", t),
+            &ScheduleMoment::Fuzzy(ref b, ref a) => write!(fmt, "{} ~ {}", b, a),
+            _ => unreachable!()
+        }
+    }
 }
 
 /// Represents a moment and an specific action in a day
@@ -202,7 +225,7 @@ impl <'a>Schedule<'a> {
     // TODO remove
     pub fn print_keys(&self) {
         for k in self.schedule.keys() {
-            println!("{} {:?}", at_utc(*k).rfc822(), self.schedule.get(k).unwrap().0);
+            println!("{} {}", at_utc(*k).rfc822(), self.schedule.get(k).unwrap().0);
         }
     }
 }

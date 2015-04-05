@@ -8,7 +8,7 @@ struct PrintOnAction;
 
 impl ScheduleAction for PrintOnAction {
     fn kick(&self, timestamp: &Timespec, event: &ScheduleMoment) {
-        println!("on:  {} {:?}", at_utc(*timestamp).rfc822(), event);
+        println!("on:  {} {}", at_utc(*timestamp).rfc822(), event);
     }
 }
 
@@ -16,7 +16,7 @@ struct PrintOffAction;
 
 impl ScheduleAction for PrintOffAction {
     fn kick(&self, timestamp: &Timespec, event: &ScheduleMoment) {
-        println!("off: {} {:?}", at_utc(*timestamp).rfc822(), event);
+        println!("off: {} {}", at_utc(*timestamp).rfc822(), event);
     }
 }
 
