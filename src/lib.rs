@@ -74,7 +74,7 @@ impl ScheduleTime {
                     _ => unreachable!()
                 };
 
-                ut_midnight_reference + offset + ut_offset
+                ut_midnight_reference + offset - ut_offset
             }
         }
     }
