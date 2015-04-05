@@ -11,10 +11,9 @@ use std::io::Result;
 
 /// Represents a fixed moment in a day
 #[derive(Debug)]
-pub struct ScheduleTime {
-    hours: u8,
-    minutes: u8,
-    seconds: u8,
+pub enum ScheduleTime {
+    LocalTime(Duration),
+    UtcTime(Duration)
 }
 
 // Local time definition
@@ -31,35 +30,49 @@ enum LocalTimeState {
 
 impl ScheduleTime {
     /// Create a moment in a day
-    pub fn new(h:u8, m:u8) -> ScheduleTime {
-        ScheduleTime {
-            hours: h,
-            minutes: m,
-            seconds: 0
-        }
+    pub fn new(h:u8, m:u8, s:u8) -> ScheduleTime {
+        ScheduleTime::LocalTime(
+            Duration::hours(h as i64) +
+            Duration::minutes(m as i64) +
+            Duration::seconds(s as i64))
+    }
+
+    /// Create a moment in a day based on Timespec
+    pub fn new_from_timespec(ts: Timespec) -> ScheduleTime {
+        let mut tm_utc = at_utc(ts);
+
+        tm_utc.tm_hour = 0;
+        tm_utc.tm_min = 0;
+        tm_utc.tm_sec = 0;
+        tm_utc.tm_nsec = 0;
+
+        ScheduleTime::UtcTime(ts - tm_utc.to_timespec())
     }
 
     /// Convert schedule time to actual time stamp
     fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Timespec {
-        let ut_offset = match *localtime {
-            LocalTimeState::NoChangePending(ref info) => info.ut_offset,
-            LocalTimeState::ChangePending(transition_time, ref before, ref after) => {
-                if ut_midnight_reference < transition_time {
-                    before.ut_offset
-                }
-                else {
-                    after.ut_offset
-                }
-            }
-            _ => unreachable!()
-        };
+        match self {
+            // timestamp is simply a reference to UTC so just add the offset
+            &ScheduleTime::UtcTime(offset) => ut_midnight_reference + offset,
+            // timestamp is a reference to the moment in a day
+            &ScheduleTime::LocalTime(offset) => { 
+                let ut_offset = match *localtime {
+                    LocalTimeState::NoChangePending(ref info) => info.ut_offset,
+                    LocalTimeState::ChangePending(transition_time, ref before, ref after) => {
+                        if ut_midnight_reference < transition_time {
+                            before.ut_offset
+                        }
+                        else {
+                            after.ut_offset
+                        }
+                    }
+                    _ => unreachable!()
+                };
 
-        ut_midnight_reference
-            + Duration::hours(self.hours as i64)
-            + Duration::minutes(self.minutes as i64)
-            + Duration::seconds(self.seconds as i64)
-            + ut_offset
+                ut_midnight_reference + offset + ut_offset
+            }
+        }
     }
 }
 

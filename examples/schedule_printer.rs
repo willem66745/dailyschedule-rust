@@ -26,14 +26,14 @@ fn main() {
 
     let mut schedule = Schedule::new().unwrap();
 
-    schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(10,00),
-                                             ScheduleTime::new(11,00)), &action_on_handler);
-    schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(12,00),
-                                             ScheduleTime::new(13,00)), &action_off_handler);
-    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(19,00)), &action_on_handler);
-    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(21,00)), &action_off_handler);
-    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(22,00)), &action_on_handler);
-    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(23,00)), &action_off_handler);
+    schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(10,0,0),
+                                             ScheduleTime::new(11,0,0)), &action_on_handler);
+    schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(12,0,0),
+                                             ScheduleTime::new(13,0,0)), &action_off_handler);
+    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(19,0,0)), &action_on_handler);
+    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(21,0,0)), &action_off_handler);
+    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(22,0,0)), &action_on_handler);
+    schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(23,0,0)), &action_off_handler);
 
     schedule.update_schedule(Timespec{sec:0, nsec:0});
     schedule.update_schedule(Timespec{sec:24*3600, nsec:0});
