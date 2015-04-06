@@ -65,7 +65,7 @@ impl ScheduleTime {
                 let ut_offset = match *localtime {
                     LocalTimeState::NoChangePending(ref info) => info.ut_offset,
                     LocalTimeState::ChangePending(transition_time, ref before, ref after) => {
-                        if ut_midnight_reference < transition_time {
+                        if ut_midnight_reference + offset - before.ut_offset < transition_time {
                             before.ut_offset
                         }
                         else {
