@@ -37,10 +37,6 @@ impl PrintAction {
             cur_state: SwitchState::Off
         }
     }
-
-    fn as_box(name: &str) -> Box<dailyschedule::ScheduleAction> {
-        Box::new(PrintAction::new(name))
-    }
 }
 
 impl ScheduleAction for PrintAction {
@@ -75,12 +71,12 @@ impl ScheduleAction for PrintAction {
 
 fn main() {
     //let action_handler_1 = RefCell::new(Box::new(PrintAction::new("1")) as Box<dailyschedule::ScheduleAction>);
-    let action_handler_1 = RefCell::new(PrintAction::as_box("1"));
+    let action_handler_1 = RefCell::new(PrintAction::new("1"));
     //let action_handler_2 = PrintAction::new("2");
     //let action_handler_3 = PrintAction::new("3");
     //let action_handler_4 = PrintAction::new("4");
 
-    let mut schedule = Schedule::new().unwrap();
+    let mut schedule = Schedule::<PrintAction>::new().unwrap();
 
     schedule.add_event(
         ScheduleMoment::Fuzzy(ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,1)),

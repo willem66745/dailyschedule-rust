@@ -114,13 +114,13 @@ impl std::fmt::Display for ScheduleMoment {
 }
 
 /// Represents a moment and an specific action in a day
-struct ScheduleEvent<'a> {
+struct ScheduleEvent<'a, H: ScheduleAction + 'a> {
     moment: ScheduleMoment, 
-    action: &'a RefCell<Box<ScheduleAction>>,
+    action: &'a RefCell<H>,
     context: ScheduleContext
 }
 
-impl <'a>ScheduleEvent<'a> {
+impl<'a, H: ScheduleAction + 'a> ScheduleEvent<'a, H> {
     /// Determine timestamp for event
     fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Timespec {
@@ -165,9 +165,9 @@ pub trait ScheduleAction {
 }
 
 /// Represents multiple moments in a day
-pub struct Schedule<'a> {
+pub struct Schedule<'a, H: ScheduleAction + 'a> {
     // List of (abstract) moments in a day
-    events: Vec<Rc<ScheduleEvent<'a>>>,
+    events: Vec<Rc<ScheduleEvent<'a, H>>>,
 
     // Time zone related information
     zoneinfo: ZoneInfo,
@@ -176,12 +176,12 @@ pub struct Schedule<'a> {
     localtime: LocalTimeState,
 
     // Tree of actual scheduled moments and reference to the abstract moment in a day
-    schedule: BTreeMap<Timespec, Rc<ScheduleEvent<'a>>>
+    schedule: BTreeMap<Timespec, Rc<ScheduleEvent<'a, H>>>
 }
 
-impl <'a>Schedule<'a> {
+impl<'a, H: ScheduleAction + 'a> Schedule<'a, H> {
     /// Create a (empty) list of moments in a day
-    pub fn new() -> Result<Schedule<'a>> {
+    pub fn new() -> Result<Schedule<'a, H>> {
         Ok(Schedule {
             events: vec![],
             zoneinfo: try!(ZoneInfo::get_local_zoneinfo()),
@@ -193,7 +193,7 @@ impl <'a>Schedule<'a> {
     /// Add a (abstract) moment and action in a day
     pub fn add_event(&mut self,
                      moment: ScheduleMoment,
-                     action: &'a RefCell<Box<ScheduleAction>>,
+                     action: &'a RefCell<H>,
                      context: ScheduleContext) {
         self.events.push(Rc::new(ScheduleEvent {
             moment: moment,
