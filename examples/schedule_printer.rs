@@ -37,6 +37,10 @@ impl PrintAction {
             cur_state: SwitchState::Off
         }
     }
+
+    fn as_ref(name: &str) -> RefCell<PrintAction> {
+        RefCell::new(PrintAction::new(name))
+    }
 }
 
 impl ScheduleAction for PrintAction {
@@ -63,7 +67,7 @@ impl ScheduleAction for PrintAction {
                 SwitchState::Off => "off:",
                 SwitchState::On => "on:"
             };
-            println!("{} {:5}{} {}", self.id, action, at(*timestamp).rfc822(), event);
+            println!("{} {:5}{} {}", self.id, action, at_utc(*timestamp).rfc822(), event);
             self.cur_state = new_state;
         }
     }
@@ -71,17 +75,15 @@ impl ScheduleAction for PrintAction {
 
 fn main() {
     let sunrise_closure = |ts| ScheduleTime::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunrise);
+    let sunset_closure = |ts| ScheduleTime::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunset);
 
-    //let action_handler_1 = RefCell::new(Box::new(PrintAction::new("1")) as Box<dailyschedule::ScheduleAction>);
-    let action_handler_1 = RefCell::new(PrintAction::new("1"));
-    //let action_handler_2 = PrintAction::new("2");
-    //let action_handler_3 = PrintAction::new("3");
-    //let action_handler_4 = PrintAction::new("4");
+    let action_handler_1 = PrintAction::as_ref("1");
+    let action_handler_2 = PrintAction::as_ref("2");
 
     let mut schedule = Schedule::<PrintAction>::new().unwrap();
 
     schedule.add_event(
-        ScheduleMoment::Fuzzy(ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,1)),
+        ScheduleMoment::Fuzzy(ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,0)),
         &action_handler_1,
         ON);
     schedule.add_event(
@@ -89,16 +91,14 @@ fn main() {
         &action_handler_1,
         OFF);
 
-    //schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(10,0,0),
-    //                                         ScheduleTime::new(11,0,0)), &action_handler_1, ON);
-    //schedule.add_event(ScheduleMoment::Fuzzy(ScheduleTime::new(12,0,0),
-    //                                         ScheduleTime::new(13,0,0)), &action_handler_1, OFF);
-    //schedule.add_event(ScheduleMoment::ByClosure(Box::new(|_| ScheduleTime::new(14,0,0)), Duration::minutes(1)), &action_handler_2, ON);
-    //schedule.add_event(ScheduleMoment::ByClosure(Box::new(|_| ScheduleTime::new(15,0,0)), Duration::minutes(1)), &action_handler_2, OFF);
-    //schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(19,0,0)), &action_handler_3, ON);
-    //schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(21,0,0)), &action_handler_3, OFF);
-    //schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(22,0,0)), &action_handler_4, ON);
-    //schedule.add_event(ScheduleMoment::Fixed(ScheduleTime::new(23,0,0)), &action_handler_4, OFF);
+    schedule.add_event(
+        ScheduleMoment::ByClosure(&sunset_closure, Duration::minutes(10)),
+        &action_handler_2,
+        ON);
+    schedule.add_event(
+        ScheduleMoment::Fuzzy(ScheduleTime::new(0,15,0), ScheduleTime::new(0,30,0)),
+        &action_handler_2,
+        OFF);
 
     let mut tm = now_utc();
     tm.tm_hour = 0;
@@ -107,11 +107,11 @@ fn main() {
     tm.tm_nsec = 0;
     let ts_ref = tm.to_timespec();
 
-    for days in 0..366 {
+    for days in 0..730 {
         schedule.update_schedule(ts_ref + Duration::days(days));
     }
 
-    let mut now = Timespec::new(0,0);
+    let mut now = now_utc().to_timespec();
 
     loop {
         match schedule.kick_event(now) {
@@ -121,8 +121,4 @@ fn main() {
             None => break
         }
     }
-
-    //schedule.print_keys();
-    //schedule.kick_event(Timespec::new(15*3600, 0));
-    //schedule.print_keys();
 }
