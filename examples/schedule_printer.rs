@@ -70,6 +70,8 @@ impl ScheduleAction for PrintAction {
 }
 
 fn main() {
+    let sunrise_closure = |ts| ScheduleTime::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunrise);
+
     //let action_handler_1 = RefCell::new(Box::new(PrintAction::new("1")) as Box<dailyschedule::ScheduleAction>);
     let action_handler_1 = RefCell::new(PrintAction::new("1"));
     //let action_handler_2 = PrintAction::new("2");
@@ -83,9 +85,7 @@ fn main() {
         &action_handler_1,
         ON);
     schedule.add_event(
-        ScheduleMoment::ByClosure(Box::new(|ts| ScheduleTime::new_from_timespec(
-                    calculate_daylight(at_utc(ts), LAT, LONG).sunrise)),
-                    Duration::minutes(2)),
+        ScheduleMoment::ByClosure(&sunrise_closure, Duration::minutes(2)),
         &action_handler_1,
         OFF);
 

@@ -96,13 +96,13 @@ impl std::fmt::Display for ScheduleTime {
 }
 
 /// Represent a (abstract) moment in a day
-pub enum ScheduleMoment {
+pub enum ScheduleMoment<'a> {
     Fixed(ScheduleTime),
     Fuzzy(ScheduleTime, ScheduleTime),
-    ByClosure(Box<Fn(Timespec) -> ScheduleTime>, Duration)
+    ByClosure(&'a Fn(Timespec) -> ScheduleTime, Duration)
 }
 
-impl std::fmt::Display for ScheduleMoment {
+impl<'a> std::fmt::Display for ScheduleMoment<'a> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             &ScheduleMoment::Fixed(ref t) => write!(fmt, "{}", t),
@@ -115,7 +115,7 @@ impl std::fmt::Display for ScheduleMoment {
 
 /// Represents a moment and an specific action in a day
 struct ScheduleEvent<'a, H: ScheduleAction + 'a> {
-    moment: ScheduleMoment, 
+    moment: ScheduleMoment<'a>, 
     action: &'a RefCell<H>,
     context: ScheduleContext
 }
@@ -192,7 +192,7 @@ impl<'a, H: ScheduleAction + 'a> Schedule<'a, H> {
 
     /// Add a (abstract) moment and action in a day
     pub fn add_event(&mut self,
-                     moment: ScheduleMoment,
+                     moment: ScheduleMoment<'a>,
                      action: &'a RefCell<H>,
                      context: ScheduleContext) {
         self.events.push(Rc::new(ScheduleEvent {
