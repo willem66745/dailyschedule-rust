@@ -95,19 +95,64 @@ impl std::fmt::Display for ScheduleTime {
     }
 }
 
+/// Weekday specifier
+pub enum ScheduleWeek {
+    Always,
+    MonToFri,
+    Weekend // Fixme: more abstractions?
+}
+
+impl ScheduleWeek {
+    fn filter_days(&self, time: Timespec, zoneinfo: &ZoneInfoElement) -> bool {
+        // make sure reference time is in the same weekday in UTC as it would be
+        // in local time.
+        let ref_time = time + zoneinfo.ut_offset;
+        let wday = at_utc(ref_time).tm_wday;
+        let weekend = wday == 0 || wday == 6; // 0 = Sunday, 6 = Saturday
+
+        match self {
+            &ScheduleWeek::Always => true,
+            &ScheduleWeek::MonToFri => !weekend,
+            &ScheduleWeek::Weekend => weekend
+        }
+    }
+
+    fn day_scheduled(&self, time: Timespec, localtime: &LocalTimeState) -> bool {
+        match self {
+            &ScheduleWeek::Always => true,
+            &ScheduleWeek::MonToFri|&ScheduleWeek::Weekend => {
+                let zoneinfo = match localtime {
+                    &LocalTimeState::NoChangePending(ref zoneinfo) => zoneinfo,
+                    &LocalTimeState::ChangePending(ref transition, ref z1, ref z2) => {
+                        if time < *transition {
+                            z1
+                        }
+                        else {
+                            z2
+                        }
+                    }
+                    _ => unreachable!()
+                };
+
+                self.filter_days(time, zoneinfo)
+            },
+        }
+    }
+}
+
 /// Represent a (abstract) moment in a day
 pub enum ScheduleMoment<'a> {
-    Fixed(ScheduleTime),
-    Fuzzy(ScheduleTime, ScheduleTime),
-    ByClosure(&'a Fn(Timespec) -> ScheduleTime, Duration)
+    Fixed(ScheduleWeek, ScheduleTime),
+    Fuzzy(ScheduleWeek, ScheduleTime, ScheduleTime),
+    ByClosure(ScheduleWeek, &'a Fn(Timespec) -> ScheduleTime, Duration)
 }
 
 impl<'a> std::fmt::Display for ScheduleMoment<'a> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            &ScheduleMoment::Fixed(ref t) => write!(fmt, "{}", t),
-            &ScheduleMoment::Fuzzy(ref b, ref a) => write!(fmt, "{} ~ {}", b, a),
-            &ScheduleMoment::ByClosure(_, ref variance) =>
+            &ScheduleMoment::Fixed(_, ref t) => write!(fmt, "{}", t),
+            &ScheduleMoment::Fuzzy(_, ref b, ref a) => write!(fmt, "{} ~ {}", b, a),
+            &ScheduleMoment::ByClosure(_, _, ref variance) =>
                 write!(fmt, "dynamic ~{}s", variance.num_seconds()),
         }
     }
@@ -123,11 +168,11 @@ struct ScheduleEvent<'a, H: ScheduleAction + 'a> {
 impl<'a, H: ScheduleAction + 'a> ScheduleEvent<'a, H> {
     /// Determine timestamp for event
     fn create_timestamp(&self, ut_midnight_reference: Timespec,
-                        localtime: &LocalTimeState) -> Timespec {
-        match self.moment {
-            ScheduleMoment::Fixed(ref moment) =>
+                        localtime: &LocalTimeState) -> Option<Timespec> {
+        let ts = match self.moment {
+            ScheduleMoment::Fixed(_, ref moment) =>
                 moment.create_timestamp(ut_midnight_reference, localtime),
-            ScheduleMoment::Fuzzy(ref m1, ref m2) => {
+            ScheduleMoment::Fuzzy(_, ref m1, ref m2) => {
                 // pick a time between both given moment
                 let mut rng = rand::thread_rng();
                 let t1 = m1.create_timestamp(ut_midnight_reference, localtime);
@@ -142,7 +187,7 @@ impl<'a, H: ScheduleAction + 'a> ScheduleEvent<'a, H> {
                     t_start
                 }
             }
-            ScheduleMoment::ByClosure(ref func, ref variance) => {
+            ScheduleMoment::ByClosure(_, ref func, ref variance) => {
                 let moment = func(ut_midnight_reference);
                 // generate a offset based on variance compared to the generated moment
                 let mut rng = rand::thread_rng();
@@ -155,6 +200,18 @@ impl<'a, H: ScheduleAction + 'a> ScheduleEvent<'a, H> {
                 let offset = Duration::seconds(variance.num_seconds() / 2 - offset);
                 moment.create_timestamp(ut_midnight_reference, localtime) + offset
             }
+        };
+        let do_schedule = match self.moment {
+            ScheduleMoment::Fixed(ref w, _) |
+            ScheduleMoment::Fuzzy(ref w, _, _) |
+            ScheduleMoment::ByClosure(ref w, _, _) => w.day_scheduled(ts, localtime)
+        };
+
+        if do_schedule {
+            Some(ts)
+        }
+        else {
+            None
         }
     }
 }
@@ -228,7 +285,9 @@ impl<'a, H: ScheduleAction + 'a> Schedule<'a, H> {
 
         for event in &self.events {
             let timestamp = event.create_timestamp(ut_midnight_reference, &self.localtime);
-            self.schedule.insert(timestamp, event.clone());
+            if let Some(timestamp) = timestamp {
+                self.schedule.insert(timestamp, event.clone());
+            }
         }
     }
 

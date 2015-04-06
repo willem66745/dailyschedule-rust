@@ -3,7 +3,7 @@ extern crate daylight;
 extern crate time;
 
 use dailyschedule::*;
-use time::{Timespec, at, at_utc, now_utc, Duration};
+use time::{Timespec, at_utc, now_utc, Duration};
 use daylight::calculate_daylight;
 use std::cell::RefCell;
 
@@ -17,6 +17,8 @@ enum SwitchState {
     Off,
     On
 }
+
+// FIXME: Not a reliable approach
 enum SwitchScheduleState {
     DeepOff,
     Off,
@@ -83,20 +85,20 @@ fn main() {
     let mut schedule = Schedule::<PrintAction>::new().unwrap();
 
     schedule.add_event(
-        ScheduleMoment::Fuzzy(ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,0)),
+        ScheduleMoment::Fuzzy(ScheduleWeek::MonToFri, ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,0)),
         &action_handler_1,
         ON);
     schedule.add_event(
-        ScheduleMoment::ByClosure(&sunrise_closure, Duration::minutes(2)),
+        ScheduleMoment::ByClosure(ScheduleWeek::MonToFri, &sunrise_closure, Duration::minutes(2)),
         &action_handler_1,
         OFF);
 
     schedule.add_event(
-        ScheduleMoment::ByClosure(&sunset_closure, Duration::minutes(10)),
+        ScheduleMoment::ByClosure(ScheduleWeek::Always, &sunset_closure, Duration::minutes(10)),
         &action_handler_2,
         ON);
     schedule.add_event(
-        ScheduleMoment::Fuzzy(ScheduleTime::new(0,15,0), ScheduleTime::new(0,30,0)),
+        ScheduleMoment::Fuzzy(ScheduleWeek::Always, ScheduleTime::new(0,15,0), ScheduleTime::new(0,30,0)),
         &action_handler_2,
         OFF);
 
