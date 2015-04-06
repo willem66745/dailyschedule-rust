@@ -8,6 +8,7 @@ use std::rc::Rc;
 use rand::{Rng, thread_rng};
 use zoneinfo::{ZoneInfo, ZoneInfoElement};
 use std::io::Result;
+use std::cell::RefCell;
 
 /// Represents abstract action identifier
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -115,7 +116,7 @@ impl std::fmt::Display for ScheduleMoment {
 /// Represents a moment and an specific action in a day
 struct ScheduleEvent<'a> {
     moment: ScheduleMoment, 
-    action: &'a ScheduleAction,
+    action: &'a RefCell<Box<ScheduleAction>>,
     context: ScheduleContext
 }
 
@@ -134,13 +135,23 @@ impl <'a>ScheduleEvent<'a> {
                 let t_start = if t1 >= t2 {t2} else {t1};
                 let t_end = if t1 >= t2 {t1} else {t2};
                 let duration = t_end - t_start;
-                t_start + Duration::seconds(rng.gen_range(0, duration.num_seconds()))
+                if duration > Duration::seconds(0) {
+                    t_start + Duration::seconds(rng.gen_range(0, duration.num_seconds()))
+                }
+                else {
+                    t_start
+                }
             }
             ScheduleMoment::ByClosure(ref func, ref variance) => {
                 let moment = func(ut_midnight_reference);
                 // generate a offset based on variance compared to the generated moment
                 let mut rng = rand::thread_rng();
-                let offset = rng.gen_range(0, variance.num_seconds());
+                let offset = if *variance > Duration::seconds(0) {
+                    rng.gen_range(0, variance.num_seconds())
+                }
+                else {
+                    0
+                };
                 let offset = Duration::seconds(variance.num_seconds() / 2 - offset);
                 moment.create_timestamp(ut_midnight_reference, localtime) + offset
             }
@@ -150,7 +161,7 @@ impl <'a>ScheduleEvent<'a> {
 
 pub trait ScheduleAction {
     /// Perform a action (in a day)
-    fn kick(&self, timestamp: &Timespec, event: &ScheduleMoment, kick: &ScheduleContext);
+    fn kick(&mut self, timestamp: &Timespec, event: &ScheduleMoment, kick: &ScheduleContext);
 }
 
 /// Represents multiple moments in a day
@@ -182,7 +193,7 @@ impl <'a>Schedule<'a> {
     /// Add a (abstract) moment and action in a day
     pub fn add_event(&mut self,
                      moment: ScheduleMoment,
-                     action: &'a ScheduleAction,
+                     action: &'a RefCell<Box<ScheduleAction>>,
                      context: ScheduleContext) {
         self.events.push(Rc::new(ScheduleEvent {
             moment: moment,
@@ -228,7 +239,7 @@ impl <'a>Schedule<'a> {
         // kick the current event...
         if let Some(timestamp) = past_events.last() {
             if let Some(schedule_event) = self.schedule.get(timestamp) {
-                schedule_event.action.kick(&timestamp, &schedule_event.moment, &schedule_event.context);
+                schedule_event.action.borrow_mut().kick(&timestamp, &schedule_event.moment, &schedule_event.context);
             }
         }
 
