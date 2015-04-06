@@ -219,7 +219,7 @@ impl<'a, H: ScheduleAction + 'a> Schedule<'a, H> {
             LocalTimeState::Unknown =>
                 self.localtime = self.new_change_state(ut_midnight_reference),
             LocalTimeState::ChangePending(time, _, _) => {
-                if time >= ut_midnight_reference {
+                if time <= ut_midnight_reference {
                     self.localtime = self.new_change_state(ut_midnight_reference);
                 }
             },
