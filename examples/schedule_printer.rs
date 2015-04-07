@@ -7,8 +7,10 @@ use time::{Timespec, at_utc, now_utc, Duration};
 use daylight::calculate_daylight;
 use std::cell::RefCell;
 
-const ON: ScheduleContext = ScheduleContext(0);
-const OFF: ScheduleContext = ScheduleContext(1);
+const ON: ScheduleContext = ScheduleContext(0); // always switch on
+const ON_WEAK: ScheduleContext = ScheduleContext(1); // switch on, except when 2x OFF (intended for dynamic end times)
+const OFF: ScheduleContext = ScheduleContext(2); // always switch off (2x means that the next ON_WEAK will have no effect)
+const OFF_WEAK: ScheduleContext = ScheduleContext(3); // always swich off
 const LAT: f64 = 52.0 + 13.0/60.0;
 const LONG: f64 = 5.0 + 58.0/60.0;
 
@@ -49,6 +51,11 @@ impl ScheduleAction for PrintAction {
     fn kick(&mut self, timestamp: &Timespec, event: &ScheduleMoment, context: &ScheduleContext) {
         self.switch_depth = match context {
             &ON => match self.switch_depth {
+                SwitchScheduleState::DeepOff => SwitchScheduleState::On,
+                SwitchScheduleState::Off => SwitchScheduleState::On,
+                SwitchScheduleState::On => SwitchScheduleState::On
+            },
+            &ON_WEAK => match self.switch_depth {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::Off,
                 SwitchScheduleState::Off => SwitchScheduleState::On,
                 SwitchScheduleState::On => SwitchScheduleState::On
@@ -56,6 +63,11 @@ impl ScheduleAction for PrintAction {
             &OFF => match self.switch_depth {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::Off => SwitchScheduleState::DeepOff,
+                SwitchScheduleState::On => SwitchScheduleState::Off
+            },
+            &OFF_WEAK => match self.switch_depth {
+                SwitchScheduleState::DeepOff => SwitchScheduleState::DeepOff,
+                SwitchScheduleState::Off => SwitchScheduleState::Off,
                 SwitchScheduleState::On => SwitchScheduleState::Off
             },
             _ => unreachable!()
@@ -87,7 +99,7 @@ fn main() {
     schedule.add_event(
         ScheduleMoment::Fuzzy(ScheduleWeek::MonToFri, ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,0)),
         &action_handler_1,
-        ON);
+        ON_WEAK);
     schedule.add_event(
         ScheduleMoment::ByClosure(ScheduleWeek::MonToFri, &sunrise_closure, Duration::minutes(2)),
         &action_handler_1,
@@ -100,7 +112,7 @@ fn main() {
     schedule.add_event(
         ScheduleMoment::Fuzzy(ScheduleWeek::Always, ScheduleTime::new(0,15,0), ScheduleTime::new(0,30,0)),
         &action_handler_2,
-        OFF);
+        OFF_WEAK);
 
     let mut tm = now_utc();
     tm.tm_hour = 0;
