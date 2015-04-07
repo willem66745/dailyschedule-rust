@@ -7,10 +7,10 @@ use time::{Timespec, at_utc, now_utc, Duration};
 use daylight::calculate_daylight;
 use std::cell::RefCell;
 
-const ON: ScheduleContext = ScheduleContext(0); // always switch on
-const ON_WEAK: ScheduleContext = ScheduleContext(1); // switch on, except when 2x OFF (intended for dynamic end times)
-const OFF: ScheduleContext = ScheduleContext(2); // always switch off (2x means that the next ON_WEAK will have no effect)
-const OFF_WEAK: ScheduleContext = ScheduleContext(3); // always swich off
+const ON: Context = Context(0); // always switch on
+const ON_WEAK: Context = Context(1); // switch on, except when 2x OFF (intended for dynamic end times)
+const OFF: Context = Context(2); // always switch off (2x means that the next ON_WEAK will have no effect)
+const OFF_WEAK: Context = Context(3); // always swich off
 const LAT: f64 = 52.0 + 13.0/60.0;
 const LONG: f64 = 5.0 + 58.0/60.0;
 
@@ -47,8 +47,8 @@ impl PrintAction {
     }
 }
 
-impl ScheduleAction for PrintAction {
-    fn kick(&mut self, timestamp: &Timespec, event: &ScheduleMoment, context: &ScheduleContext) {
+impl Handler for PrintAction {
+    fn kick(&mut self, timestamp: &Timespec, event: &DailyEvent, context: &Context) {
         self.switch_depth = match context {
             &ON => match self.switch_depth {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::On,
@@ -88,8 +88,8 @@ impl ScheduleAction for PrintAction {
 }
 
 fn main() {
-    let sunrise_closure = |ts| ScheduleTime::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunrise);
-    let sunset_closure = |ts| ScheduleTime::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunset);
+    let sunrise_closure = |ts| Moment::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunrise);
+    let sunset_closure = |ts| Moment::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunset);
 
     let action_handler_1 = PrintAction::as_ref("1");
     let action_handler_2 = PrintAction::as_ref("2");
@@ -97,20 +97,20 @@ fn main() {
     let mut schedule = Schedule::<PrintAction>::new().unwrap();
 
     schedule.add_event(
-        ScheduleMoment::Fuzzy(ScheduleWeek::MonToFri, ScheduleTime::new(6,20,0), ScheduleTime::new(6,40,0)),
+        DailyEvent::Fuzzy(Filter::MonToFri, Moment::new(6,20,0), Moment::new(6,40,0)),
         &action_handler_1,
         ON_WEAK);
     schedule.add_event(
-        ScheduleMoment::ByClosure(ScheduleWeek::MonToFri, &sunrise_closure, Duration::minutes(2)),
+        DailyEvent::ByClosure(Filter::MonToFri, &sunrise_closure, Duration::minutes(2)),
         &action_handler_1,
         OFF);
 
     schedule.add_event(
-        ScheduleMoment::ByClosure(ScheduleWeek::Always, &sunset_closure, Duration::minutes(10)),
+        DailyEvent::ByClosure(Filter::Always, &sunset_closure, Duration::minutes(10)),
         &action_handler_2,
         ON);
     schedule.add_event(
-        ScheduleMoment::Fuzzy(ScheduleWeek::Always, ScheduleTime::new(0,15,0), ScheduleTime::new(0,30,0)),
+        DailyEvent::Fuzzy(Filter::Always, Moment::new(0,15,0), Moment::new(0,30,0)),
         &action_handler_2,
         OFF_WEAK);
 
