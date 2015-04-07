@@ -263,13 +263,19 @@ pub struct Schedule<'a, H: Handler + 'a> {
 
 impl<'a, H: Handler + 'a> Schedule<'a, H> {
     /// Create a (empty) list of scheduled daily events
-    pub fn new() -> Result<Schedule<'a, H>> {
-        Ok(Schedule {
+    pub fn new(zoneinfo: ZoneInfo) -> Schedule<'a, H> {
+        Schedule {
             events: vec![],
-            zoneinfo: try!(ZoneInfo::get_local_zoneinfo()),
+            zoneinfo: zoneinfo,
             localtime: LocalTimeState::Unknown,
             schedule: BTreeMap::new()
-        })
+        }
+    }
+
+    /// Create a (empty) list of scheduled daily events based on the default zoneinfo (local time
+    /// settings)
+    pub fn new_local() -> Result<Schedule<'a, H>> {
+        Ok(Schedule::new(try!(ZoneInfo::get_local_zoneinfo())))
     }
 
     /// Add a (abstract) moment and action in a day

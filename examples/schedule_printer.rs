@@ -94,7 +94,7 @@ fn main() {
     let action_handler_1 = PrintAction::as_ref("1");
     let action_handler_2 = PrintAction::as_ref("2");
 
-    let mut schedule = Schedule::<PrintAction>::new().unwrap();
+    let mut schedule = Schedule::<PrintAction>::new_local().unwrap();
 
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::MonToFri, Moment::new(6,20,0), Moment::new(6,40,0)),
