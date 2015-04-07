@@ -1,1 +1,6 @@
-- Tests
+- Tests:
+   * DST
+   * long running scenario's
+   * Filters
+   * Contexts
+- Move display to debug

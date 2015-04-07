@@ -12,3 +12,6 @@ git = "https://github.com/willem66745/zoneinfo-rust"
 
 [dev-dependencies.daylight]
 git = "https://github.com/willem66745/daylight-rust"
+
+[[test]]
+name = "tests"
