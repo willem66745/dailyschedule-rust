@@ -74,20 +74,23 @@ impl Moment {
             &Moment::UtcTime(offset) => ut_midnight_reference + offset,
             // timestamp is a reference to the moment in a day
             &Moment::LocalTime(offset) => { 
+                let pre_localtime_cor = ut_midnight_reference + offset;
+
                 let ut_offset = match *localtime {
                     LocalTimeState::NoChangePending(ref info) => info.ut_offset,
                     LocalTimeState::ChangePending(transition_time, ref before, ref after) => {
-                        if ut_midnight_reference + offset - before.ut_offset < transition_time {
+                        let reftime = Timespec::new(pre_localtime_cor.sec - before.ut_offset as i64,
+                                                    pre_localtime_cor.nsec);
+                        if reftime < transition_time {
                             before.ut_offset
-                        }
-                        else {
+                        } else {
                             after.ut_offset
                         }
                     }
                     _ => unreachable!()
                 };
 
-                ut_midnight_reference + offset - ut_offset
+                Timespec::new(pre_localtime_cor.sec - ut_offset as i64, pre_localtime_cor.nsec)
             }
         }
     }
@@ -123,7 +126,7 @@ impl Filter {
     fn filter_days(&self, time: Timespec, zoneinfo: &ZoneInfoElement) -> bool {
         // make sure reference time is in the same weekday in UTC as it would be
         // in local time.
-        let ref_time = time + zoneinfo.ut_offset;
+        let ref_time = Timespec::new(time.sec + zoneinfo.ut_offset as i64, time.nsec);
         let wday = at_utc(ref_time).tm_wday;
         let weekend = wday == 0 || wday == 6; // 0 = Sunday, 6 = Saturday
 
@@ -144,8 +147,7 @@ impl Filter {
                     &LocalTimeState::ChangePending(ref transition, ref z1, ref z2) => {
                         if time < *transition {
                             z1
-                        }
-                        else {
+                        } else {
                             z2
                         }
                     }
@@ -207,8 +209,7 @@ impl<'a, H: Handler + 'a> Event<'a, H> {
                 let duration = t_end - t_start;
                 if duration > Duration::seconds(0) {
                     t_start + Duration::seconds(rng.gen_range(0, duration.num_seconds()))
-                }
-                else {
+                } else {
                     t_start
                 }
             }
@@ -218,8 +219,7 @@ impl<'a, H: Handler + 'a> Event<'a, H> {
                 let mut rng = rand::thread_rng();
                 let offset = if *variance > Duration::seconds(0) {
                     rng.gen_range(0, variance.num_seconds())
-                }
-                else {
+                } else {
                     0
                 };
                 let offset = Duration::seconds(variance.num_seconds() / 2 - offset);
@@ -234,8 +234,7 @@ impl<'a, H: Handler + 'a> Event<'a, H> {
 
         if do_schedule {
             Some(ts)
-        }
-        else {
+        } else {
             None
         }
     }
@@ -247,7 +246,7 @@ pub trait Handler {
     fn kick(&mut self, timestamp: &Timespec, event: &DailyEvent, kick: &Context);
 }
 
-/// Calculates and executes scheduled event every day
+/// Calculates and executes scheduled events every day
 pub struct Schedule<'a, H: Handler + 'a> {
     // List of (abstract) moments in a day
     events: Vec<Rc<Event<'a, H>>>,
