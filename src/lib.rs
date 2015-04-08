@@ -21,7 +21,7 @@ use std::io::Result;
 use std::cell::RefCell;
 
 /// Represents abstract action identifier
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Context(pub usize);
 
 /// Represents a fixed moment in a day
