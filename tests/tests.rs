@@ -219,7 +219,7 @@ fn overlapping_order_nodst() {
     assert_eq!(handler.borrow().contexts.iter().cloned().collect::<Vec<Context>>(),
                [ONE, TWO, ONE, ONE, TWO, ONE, ONE, TWO, ONE]);
 
-    // check the handler whather all expected timestamps has been passed
+    // check the handler whether all expected timestamps has been passed
     assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(2),
                 ref_time + time::Duration::hours(2),
@@ -231,3 +231,78 @@ fn overlapping_order_nodst() {
                 ref_time + time::Duration::hours(2) + time::Duration::days(2),
                 ref_time + time::Duration::hours(2) + time::Duration::days(2)]);
 }
+
+#[test]
+fn weekend() {
+    let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
+    let handler = TestHandler::as_ref();
+    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+
+    schedule.add_event(
+        DailyEvent::Fixed(Filter::Weekend, Moment::new(2,0,0)),
+        &handler,
+        DUMMY);
+
+    // note: EPOCH was a Thursday
+    let ref_time = time::Timespec::new(0, 0);
+
+    // schedule events for 8 days
+    for days in (0..8) {
+        schedule.update_schedule(ref_time + time::Duration::days(days));
+    }
+
+    let mut next_event = schedule.peek_event().unwrap();
+
+    // execute all events
+    loop {
+        match schedule.kick_event(next_event) {
+            Some(next) => next_event = next,
+            None => break
+        }
+    }
+
+    // check the handler whether all expected timestamps has been passed
+    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+               [ref_time + time::Duration::hours(2) + time::Duration::days(2),   // 2 days after Thursday
+                ref_time + time::Duration::hours(2) + time::Duration::days(3)]); // 3 days after Thursday
+}
+
+#[test]
+fn weekdays() {
+    let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
+    let handler = TestHandler::as_ref();
+    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+
+    schedule.add_event(
+        DailyEvent::Fixed(Filter::MonToFri, Moment::new(2,0,0)),
+        &handler,
+        DUMMY);
+
+    // note: EPOCH was a Thursday
+    let ref_time = time::Timespec::new(0, 0);
+
+    // schedule events for 8 days
+    for days in (0..8) {
+        schedule.update_schedule(ref_time + time::Duration::days(days));
+    }
+
+    let mut next_event = schedule.peek_event().unwrap();
+
+    // execute all events
+    loop {
+        match schedule.kick_event(next_event) {
+            Some(next) => next_event = next,
+            None => break
+        }
+    }
+
+    // check the handler whether all expected timestamps has been passed
+    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+               [ref_time + time::Duration::hours(2) + time::Duration::days(0),
+                ref_time + time::Duration::hours(2) + time::Duration::days(1), // day 2 and day 3
+                ref_time + time::Duration::hours(2) + time::Duration::days(4), // is weekend after EPOCH
+                ref_time + time::Duration::hours(2) + time::Duration::days(5),
+                ref_time + time::Duration::hours(2) + time::Duration::days(6),
+                ref_time + time::Duration::hours(2) + time::Duration::days(7)]);
+}
+
