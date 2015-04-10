@@ -81,7 +81,7 @@ impl Handler for PrintAction {
                 SwitchState::Off => "off:",
                 SwitchState::On => "on:"
             };
-            println!("{} {:5}{} {}", self.id, action, at_utc(*timestamp).rfc822(), event);
+            println!("{} {:5}{} {:?}", self.id, action, at_utc(*timestamp).rfc822(), event);
             self.cur_state = new_state;
         }
     }

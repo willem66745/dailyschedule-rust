@@ -25,7 +25,6 @@ use std::cell::RefCell;
 pub struct Context(pub usize);
 
 /// Represents a fixed moment in a day
-#[derive(Debug)]
 pub enum Moment {
     /// Duration is offset in time based on local midnight
     LocalTime(Duration),
@@ -96,8 +95,7 @@ impl Moment {
     }
 }
 
-// FIXME: remove this
-impl std::fmt::Display for Moment {
+impl std::fmt::Debug for Moment {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let duration = match self {
             &Moment::UtcTime(d) => d,
@@ -170,14 +168,13 @@ pub enum DailyEvent<'a> {
     ByClosure(Filter, &'a Fn(Timespec) -> Moment, Duration)
 }
 
-// FIXME: remove this in time
-impl<'a> std::fmt::Display for DailyEvent<'a> {
+impl<'a> std::fmt::Debug for DailyEvent<'a> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            &DailyEvent::Fixed(_, ref t) => write!(fmt, "{}", t),
-            &DailyEvent::Fuzzy(_, ref b, ref a) => write!(fmt, "{} ~ {}", b, a),
+            &DailyEvent::Fixed(_, ref t) => write!(fmt, "Fixed {:?}", t),
+            &DailyEvent::Fuzzy(_, ref b, ref a) => write!(fmt, "Fuzzy {:?} ~ {:?}", b, a),
             &DailyEvent::ByClosure(_, _, ref variance) =>
-                write!(fmt, "dynamic ~{}s", variance.num_seconds()),
+                write!(fmt, "ByClosure ~{:?}s", variance.num_seconds()),
         }
     }
 }
@@ -353,15 +350,5 @@ impl<'a, H: Handler + 'a> Schedule<'a, H> {
     /// Peek when next event will happen
     pub fn peek_event(&self) -> Option<Timespec> {
         self.schedule.keys().cloned().nth(0)
-    }
-
-    // TODO remove
-    pub fn print_keys(&self) {
-        for k in self.schedule.keys() {
-            let v = self.schedule.get(k).unwrap();
-            for i in v {
-                println!("{} {}", at_utc(*k).rfc822(), i.moment);
-            }
-        }
     }
 }
