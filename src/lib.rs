@@ -258,7 +258,7 @@ pub struct Schedule<'a, H: Handler + 'a> {
     localtime: LocalTimeState,
 
     // Tree of actual scheduled moments and reference to the abstract moment in a day
-    schedule: BTreeMap<Timespec, Rc<Event<'a, H>>>
+    schedule: BTreeMap<Timespec, Vec<Rc<Event<'a, H>>>>
 }
 
 impl<'a, H: Handler + 'a> Schedule<'a, H> {
@@ -318,7 +318,13 @@ impl<'a, H: Handler + 'a> Schedule<'a, H> {
         for event in &self.events {
             let timestamp = event.create_timestamp(ut_midnight_reference, &self.localtime);
             if let Some(timestamp) = timestamp {
-                self.schedule.insert(timestamp, event.clone());
+                let event_cloned = event.clone();
+
+                if self.schedule.contains_key(&timestamp) {
+                    self.schedule.get_mut(&timestamp).unwrap().push(event_cloned);
+                } else {
+                    self.schedule.insert(timestamp, vec![event_cloned]);
+                }
             }
         }
     }
@@ -329,8 +335,10 @@ impl<'a, H: Handler + 'a> Schedule<'a, H> {
 
         // kick the current event...
         if let Some(timestamp) = past_events.last() {
-            if let Some(schedule_event) = self.schedule.get(timestamp) {
-                schedule_event.action.borrow_mut().kick(&timestamp, &schedule_event.moment, &schedule_event.context);
+            if let Some(schedule_events) = self.schedule.get(timestamp) {
+                for schedule_event in schedule_events {
+                    schedule_event.action.borrow_mut().kick(&timestamp, &schedule_event.moment, &schedule_event.context);
+                }
             }
         }
 
@@ -350,7 +358,10 @@ impl<'a, H: Handler + 'a> Schedule<'a, H> {
     // TODO remove
     pub fn print_keys(&self) {
         for k in self.schedule.keys() {
-            println!("{} {}", at_utc(*k).rfc822(), self.schedule.get(k).unwrap().moment);
+            let v = self.schedule.get(k).unwrap();
+            for i in v {
+                println!("{} {}", at_utc(*k).rfc822(), i.moment);
+            }
         }
     }
 }

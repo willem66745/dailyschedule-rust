@@ -127,7 +127,7 @@ fn byclosure_one_day_nodst() {
 }
 
 #[test]
-fn contexts() {
+fn contexts_nodst() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
     let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
@@ -177,4 +177,57 @@ fn contexts() {
                 ref_time + time::Duration::hours(2) + time::Duration::days(2),
                 ref_time + time::Duration::hours(3) + time::Duration::days(2),
                 ref_time + time::Duration::hours(4) + time::Duration::days(2)]);
+}
+
+#[test]
+fn overlapping_order_nodst() {
+    let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
+    let handler = TestHandler::as_ref();
+    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+
+    schedule.add_event(
+        DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
+        &handler,
+        ONE);
+    schedule.add_event(
+        DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
+        &handler,
+        TWO);
+    schedule.add_event(
+        DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
+        &handler,
+        ONE);
+
+    let ref_time = time::Timespec::new(0, 0);
+
+    // schedule events for 3 days
+    for days in (0..3) {
+        schedule.update_schedule(ref_time + time::Duration::days(days));
+    }
+
+    let mut next_event = schedule.peek_event().unwrap();
+
+    // execute all events
+    loop {
+        match schedule.kick_event(next_event) {
+            Some(next) => next_event = next,
+            None => break
+        }
+    }
+
+    // check the handler whether all expected contexts has been passed
+    assert_eq!(handler.borrow().contexts.iter().cloned().collect::<Vec<Context>>(),
+               [ONE, TWO, ONE, ONE, TWO, ONE, ONE, TWO, ONE]);
+
+    // check the handler whather all expected timestamps has been passed
+    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+               [ref_time + time::Duration::hours(2),
+                ref_time + time::Duration::hours(2),
+                ref_time + time::Duration::hours(2),
+                ref_time + time::Duration::hours(2) + time::Duration::days(1),
+                ref_time + time::Duration::hours(2) + time::Duration::days(1),
+                ref_time + time::Duration::hours(2) + time::Duration::days(1),
+                ref_time + time::Duration::hours(2) + time::Duration::days(2),
+                ref_time + time::Duration::hours(2) + time::Duration::days(2),
+                ref_time + time::Duration::hours(2) + time::Duration::days(2)]);
 }
