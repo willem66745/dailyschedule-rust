@@ -426,3 +426,57 @@ fn to_dst_overlap() {
                 ONE,
                 TWO]);
 }
+
+#[test]
+fn from_dst_no_overlap() {
+    let closure = |ts| Moment::new_from_timespec(ts + time::Duration::hours(5));
+    let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
+    let handler = TestHandler::as_ref();
+    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+
+    // create event based on local time (@ Match 29th 2015 the exact transition moment)
+    schedule.add_event(
+        DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
+        &handler,
+        DUMMY);
+    // create event based on UTC (provided by closure)
+    schedule.add_event(
+        DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
+        &handler,
+        DUMMY);
+
+    // October 23th 2015 (two days before DST transition in EU)
+    let ref_time = time::Tm {
+        tm_sec: 0, tm_min: 0, tm_hour: 0, tm_mday: 23, tm_mon: 9, tm_year: 115,
+        tm_wday: 0, tm_yday: 0, tm_isdst: 0, tm_utcoff: 0, tm_nsec: 0
+    };
+    let ref_time = ref_time.to_timespec();
+
+    // schedule events for 5 days
+    for days in (0..5) {
+        schedule.update_schedule(ref_time + time::Duration::days(days));
+    }
+
+    let mut next_event = schedule.peek_event().unwrap();
+
+    // execute all events
+    loop {
+        match schedule.kick_event(next_event) {
+            Some(next) => next_event = next,
+            None => break
+        }
+    }
+
+    // check the handler whether all expected timestamps has been passed
+    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+               [ref_time + time::Duration::hours(0) + time::Duration::days(0),
+                ref_time + time::Duration::hours(5) + time::Duration::days(0),
+                ref_time + time::Duration::hours(0) + time::Duration::days(1),
+                ref_time + time::Duration::hours(5) + time::Duration::days(1),
+                ref_time + time::Duration::hours(0) + time::Duration::days(2), // <- transition; moment shifts from 0:00 UTC to 1:00 UTC (though event fires at 0:00)
+                ref_time + time::Duration::hours(5) + time::Duration::days(2), // <- scheduled as UTC timestamp; stays at 5:00 UTC
+                ref_time + time::Duration::hours(1) + time::Duration::days(3),
+                ref_time + time::Duration::hours(5) + time::Duration::days(3),
+                ref_time + time::Duration::hours(1) + time::Duration::days(4),
+                ref_time + time::Duration::hours(5) + time::Duration::days(4)]);
+}
