@@ -8,10 +8,14 @@ use daylight::calculate_daylight;
 use std::cell::Cell;
 use std::rc::Rc;
 
-const ON: Context = Context(0); // always switch on
-const ON_WEAK: Context = Context(1); // switch on, except when 2x OFF (intended for dynamic end times)
-const OFF: Context = Context(2); // always switch off (2x means that the next ON_WEAK will have no effect)
-const OFF_WEAK: Context = Context(3); // always swich off
+#[derive(Eq, PartialEq)]
+enum Context {
+    On,
+    OnWeak,
+    Off,
+    OffWeak
+}
+
 const LAT: f64 = 52.0 + 13.0/60.0;
 const LONG: f64 = 5.0 + 58.0/60.0;
 
@@ -49,30 +53,29 @@ impl PrintAction {
     }
 }
 
-impl Handler for PrintAction {
+impl Handler<Context> for PrintAction {
     fn kick(&self, timestamp: &Timespec, event: &DailyEvent, context: &Context) {
         self.switch_depth.set(match context {
-            &ON => match self.switch_depth.get() {
+            &Context::On => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::On,
                 SwitchScheduleState::Off => SwitchScheduleState::On,
                 SwitchScheduleState::On => SwitchScheduleState::On
             },
-            &ON_WEAK => match self.switch_depth.get() {
+            &Context::OnWeak => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::Off,
                 SwitchScheduleState::Off => SwitchScheduleState::On,
                 SwitchScheduleState::On => SwitchScheduleState::On
             },
-            &OFF => match self.switch_depth.get() {
+            &Context::Off => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::Off => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::On => SwitchScheduleState::Off
             },
-            &OFF_WEAK => match self.switch_depth.get() {
+            &Context::OffWeak => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::Off => SwitchScheduleState::Off,
                 SwitchScheduleState::On => SwitchScheduleState::Off
             },
-            _ => unreachable!()
         });
         let new_state = match self.switch_depth.get() {
             SwitchScheduleState::DeepOff | SwitchScheduleState::Off => SwitchState::Off,
@@ -96,25 +99,25 @@ fn main() {
     let action_handler_1 = PrintAction::as_ref("1");
     let action_handler_2 = PrintAction::as_ref("2");
 
-    let mut schedule = Schedule::<PrintAction>::new_local().unwrap();
+    let mut schedule = Schedule::<Context, PrintAction>::new_local().unwrap();
 
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::MonToFri, Moment::new(6,20,0), Moment::new(6,40,0)),
         action_handler_1.clone(),
-        ON_WEAK);
+        Context::OnWeak);
     schedule.add_event(
         DailyEvent::ByClosure(Filter::MonToFri, sunrise_closure, Duration::minutes(2)),
         action_handler_1.clone(),
-        OFF);
+        Context::Off);
 
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, sunset_closure, Duration::minutes(10)),
         action_handler_2.clone(),
-        ON);
+        Context::On);
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::Always, Moment::new(0,15,0), Moment::new(0,30,0)),
         action_handler_2.clone(),
-        OFF_WEAK);
+        Context::OffWeak);
 
     let mut tm = now_utc();
     tm.tm_hour = 0;

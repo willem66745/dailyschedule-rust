@@ -8,9 +8,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use zoneinfo::ZoneInfo;
 
-const DUMMY: Context = Context(0);
-const ONE: Context = Context(1);
-const TWO: Context = Context(2);
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+enum Context {
+    Dummy,
+    One,
+    Two
+}
 
 struct TestHandler {
     timestamps: RefCell<Vec<time::Timespec>>,
@@ -30,7 +33,7 @@ impl TestHandler {
     }
 }
 
-impl Handler for TestHandler {
+impl Handler<Context> for TestHandler {
     fn kick(&self, timestamp: &time::Timespec, _: &DailyEvent, context: &Context) {
         self.timestamps.borrow_mut().push((*timestamp).clone());
         self.contexts.borrow_mut().push(*context);
@@ -41,12 +44,12 @@ impl Handler for TestHandler {
 fn fixed_one_day_nodst() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
     schedule.update_schedule(time::Timespec::new(0, 0));
 
     let next_event = schedule.peek_event().unwrap();
@@ -71,12 +74,12 @@ fn fixed_one_day_nodst() {
 fn fuzzy_one_day_nodst() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::Always, Moment::new(2,0,0), Moment::new(3,0,0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
     schedule.update_schedule(time::Timespec::new(0, 0));
 
     let next_event = schedule.peek_event().unwrap();
@@ -102,12 +105,12 @@ fn byclosure_one_day_nodst() {
     let closure = Box::new(|_| Moment::new(2,0,0));
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
     schedule.update_schedule(time::Timespec::new(0, 0));
 
     let next_event = schedule.peek_event().unwrap();
@@ -131,20 +134,20 @@ fn byclosure_one_day_nodst() {
 fn contexts_nodst() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        ONE);
+        Context::One);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(3,0,0)),
         handler.clone(),
-        TWO);
+        Context::Two);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(4,0,0)),
         handler.clone(),
-        ONE);
+        Context::One);
 
     let ref_time = time::Timespec::new(0, 0);
 
@@ -165,7 +168,7 @@ fn contexts_nodst() {
 
     // check the handler whether all expected contexts has been passed
     assert_eq!(handler.contexts.borrow().iter().cloned().collect::<Vec<Context>>(),
-               [ONE, TWO, ONE, ONE, TWO, ONE, ONE, TWO, ONE]);
+               [Context::One, Context::Two, Context::One, Context::One, Context::Two, Context::One, Context::One, Context::Two, Context::One]);
 
     // check the handler whather all expected timestamps has been passed
     assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
@@ -184,20 +187,20 @@ fn contexts_nodst() {
 fn overlapping_order_nodst() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        ONE);
+        Context::One);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        TWO);
+        Context::Two);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        ONE);
+        Context::One);
 
     let ref_time = time::Timespec::new(0, 0);
 
@@ -218,7 +221,7 @@ fn overlapping_order_nodst() {
 
     // check the handler whether all expected contexts has been passed
     assert_eq!(handler.contexts.borrow().iter().cloned().collect::<Vec<Context>>(),
-               [ONE, TWO, ONE, ONE, TWO, ONE, ONE, TWO, ONE]);
+               [Context::One, Context::Two, Context::One, Context::One, Context::Two, Context::One, Context::One, Context::Two, Context::One]);
 
     // check the handler whether all expected timestamps has been passed
     assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
@@ -237,12 +240,12 @@ fn overlapping_order_nodst() {
 fn weekend() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Weekend, Moment::new(2,0,0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
 
     // note: EPOCH was a Thursday
     let ref_time = time::Timespec::new(0, 0);
@@ -272,12 +275,12 @@ fn weekend() {
 fn weekdays() {
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::MonToFri, Moment::new(2,0,0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
 
     // note: EPOCH was a Thursday
     let ref_time = time::Timespec::new(0, 0);
@@ -312,18 +315,18 @@ fn to_dst_no_overlap() {
     let closure = Box::new(|ts| Moment::new_from_timespec(ts + time::Duration::hours(5)));
     let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     // create event based on local time (@ Match 29th 2015 the exact transition moment)
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
     // create event based on UTC (provided by closure)
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
 
     // March 27th 2015 (two days before DST transition in EU)
     let ref_time = time::Tm {
@@ -366,18 +369,18 @@ fn to_dst_overlap() {
     let closure = Box::new(|ts| Moment::new_from_timespec(ts + time::Duration::hours(0)));
     let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     // create event based on local time (@ Match 29th 2015 the exact transition moment)
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        ONE);
+        Context::One);
     // create event based on UTC (provided by closure)
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
-        TWO);
+        Context::Two);
 
     // March 27th 2015 (two days before DST transition in EU)
     let ref_time = time::Tm {
@@ -416,16 +419,16 @@ fn to_dst_overlap() {
 
     // check the handler whether all expected contexts has been passed
     assert_eq!(handler.contexts.borrow().iter().cloned().collect::<Vec<Context>>(),
-               [TWO,
-                ONE,
-                TWO,
-                ONE,
-                ONE, // DST active, first event overlaps seconds event -> first event has priority
-                TWO,
-                ONE,
-                TWO,
-                ONE,
-                TWO]);
+               [Context::Two,
+                Context::One,
+                Context::Two,
+                Context::One,
+                Context::One, // DST active, first event overlaps seconds event -> first event has priority
+                Context::Two,
+                Context::One,
+                Context::Two,
+                Context::One,
+                Context::Two]);
 }
 
 #[test]
@@ -433,18 +436,18 @@ fn from_dst_no_overlap() {
     let closure = Box::new(|ts| Moment::new_from_timespec(ts + time::Duration::hours(5)));
     let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
     let handler = TestHandler::as_ref();
-    let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
+    let mut schedule = Schedule::<Context, TestHandler>::new(zoneinfo);
 
     // create event based on local time (@ Match 29th 2015 the exact transition moment)
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
     // create event based on UTC (provided by closure)
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
-        DUMMY);
+        Context::Dummy);
 
     // October 23th 2015 (two days before DST transition in EU)
     let ref_time = time::Tm {

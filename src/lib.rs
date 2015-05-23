@@ -19,10 +19,6 @@ use rand::{Rng, thread_rng};
 use zoneinfo::{ZoneInfo, ZoneInfoElement};
 use std::io::Result;
 
-/// Represents abstract action identifier
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Context(pub usize);
-
 /// Represents a fixed moment in a day
 pub enum Moment {
     /// Duration is offset in time based on local midnight
@@ -179,16 +175,16 @@ impl std::fmt::Debug for DailyEvent {
 }
 
 /// Represents a moment and an specific action in a day
-struct Event<H: Handler> {
+struct Event<C: Eq+PartialEq, H: Handler<C>> {
     /// A moment in a day
     moment: DailyEvent, 
     /// Reference to a action handler
     action: Rc<H>,
     /// Externally provided reference for the implementor
-    context: Context
+    context: C
 }
 
-impl<H: Handler> Event<H> {
+impl<C: Eq+PartialEq, H: Handler<C>> Event<C, H> {
     /// Determine time-stamp for event
     fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Option<Timespec> {
@@ -237,15 +233,15 @@ impl<H: Handler> Event<H> {
 }
 
 /// Trait to be implemented by the event handler
-pub trait Handler {
+pub trait Handler<C: Eq + PartialEq> {
     /// Perform a action (in a day)
-    fn kick(&self, timestamp: &Timespec, event: &DailyEvent, kick: &Context);
+    fn kick(&self, timestamp: &Timespec, event: &DailyEvent, kick: &C);
 }
 
 /// Calculates and executes scheduled events every day
-pub struct Schedule<H: Handler> {
+pub struct Schedule<C: Eq + PartialEq, H: Handler<C>> {
     // List of (abstract) moments in a day
-    events: Vec<Rc<Event<H>>>,
+    events: Vec<Rc<Event<C, H>>>,
 
     // Time zone related information
     zoneinfo: ZoneInfo,
@@ -254,12 +250,12 @@ pub struct Schedule<H: Handler> {
     localtime: LocalTimeState,
 
     // Tree of actual scheduled moments and reference to the abstract moment in a day
-    schedule: BTreeMap<Timespec, Vec<Rc<Event<H>>>>
+    schedule: BTreeMap<Timespec, Vec<Rc<Event<C, H>>>>
 }
 
-impl<H: Handler> Schedule<H> {
+impl<C: Eq + PartialEq, H: Handler<C>> Schedule<C, H> {
     /// Create a (empty) list of scheduled daily events
-    pub fn new(zoneinfo: ZoneInfo) -> Schedule<H> {
+    pub fn new(zoneinfo: ZoneInfo) -> Schedule<C, H> {
         Schedule {
             events: vec![],
             zoneinfo: zoneinfo,
@@ -270,7 +266,7 @@ impl<H: Handler> Schedule<H> {
 
     /// Create a (empty) list of scheduled daily events based on the default zoneinfo (local time
     /// settings)
-    pub fn new_local() -> Result<Schedule<H>> {
+    pub fn new_local() -> Result<Schedule<C, H>> {
         Ok(Schedule::new(try!(ZoneInfo::get_local_zoneinfo())))
     }
 
@@ -278,7 +274,7 @@ impl<H: Handler> Schedule<H> {
     pub fn add_event(&mut self,
                      moment: DailyEvent,
                      action: Rc<H>,
-                     context: Context) {
+                     context: C) {
         self.events.push(Rc::new(Event {
             moment: moment,
             action: action,
