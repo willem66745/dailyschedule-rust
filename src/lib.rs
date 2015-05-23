@@ -18,7 +18,6 @@ use std::rc::Rc;
 use rand::{Rng, thread_rng};
 use zoneinfo::{ZoneInfo, ZoneInfoElement};
 use std::io::Result;
-use std::cell::RefCell;
 
 /// Represents abstract action identifier
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -184,7 +183,7 @@ struct Event<H: Handler> {
     /// A moment in a day
     moment: DailyEvent, 
     /// Reference to a action handler
-    action: Rc<RefCell<H>>,
+    action: Rc<H>,
     /// Externally provided reference for the implementor
     context: Context
 }
@@ -240,7 +239,7 @@ impl<H: Handler> Event<H> {
 /// Trait to be implemented by the event handler
 pub trait Handler {
     /// Perform a action (in a day)
-    fn kick(&mut self, timestamp: &Timespec, event: &DailyEvent, kick: &Context);
+    fn kick(&self, timestamp: &Timespec, event: &DailyEvent, kick: &Context);
 }
 
 /// Calculates and executes scheduled events every day
@@ -278,7 +277,7 @@ impl<H: Handler> Schedule<H> {
     /// Add a (abstract) moment and action in a day
     pub fn add_event(&mut self,
                      moment: DailyEvent,
-                     action: Rc<RefCell<H>>,
+                     action: Rc<H>,
                      context: Context) {
         self.events.push(Rc::new(Event {
             moment: moment,
@@ -334,7 +333,7 @@ impl<H: Handler> Schedule<H> {
         if let Some(timestamp) = past_events.last() {
             if let Some(schedule_events) = self.schedule.get(timestamp) {
                 for schedule_event in schedule_events {
-                    schedule_event.action.borrow_mut().kick(&timestamp, &schedule_event.moment, &schedule_event.context);
+                    schedule_event.action.kick(&timestamp, &schedule_event.moment, &schedule_event.context);
                 }
             }
         }

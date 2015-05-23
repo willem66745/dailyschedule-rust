@@ -5,7 +5,7 @@ extern crate time;
 use dailyschedule::*;
 use time::{Timespec, at_utc, now_utc, Duration};
 use daylight::calculate_daylight;
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::rc::Rc;
 
 const ON: Context = Context(0); // always switch on
@@ -15,13 +15,14 @@ const OFF_WEAK: Context = Context(3); // always swich off
 const LAT: f64 = 52.0 + 13.0/60.0;
 const LONG: f64 = 5.0 + 58.0/60.0;
 
-#[derive(Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum SwitchState {
     Off,
     On
 }
 
 // FIXME: Not a reliable approach
+#[derive(Copy, Clone)]
 enum SwitchScheduleState {
     DeepOff,
     Off,
@@ -30,60 +31,60 @@ enum SwitchScheduleState {
 
 struct PrintAction {
     id: String,
-    switch_depth: SwitchScheduleState,
-    cur_state: SwitchState
+    switch_depth: Cell<SwitchScheduleState>,
+    cur_state: Cell<SwitchState>
 }
 
 impl PrintAction {
     fn new(name: &str) -> PrintAction {
         PrintAction {
             id: name.to_string(),
-            switch_depth: SwitchScheduleState::Off,
-            cur_state: SwitchState::Off
+            switch_depth: Cell::new(SwitchScheduleState::Off),
+            cur_state: Cell::new(SwitchState::Off)
         }
     }
 
-    fn as_ref(name: &str) -> Rc<RefCell<PrintAction>> {
-        Rc::new(RefCell::new(PrintAction::new(name)))
+    fn as_ref(name: &str) -> Rc<PrintAction> {
+        Rc::new(PrintAction::new(name))
     }
 }
 
 impl Handler for PrintAction {
-    fn kick(&mut self, timestamp: &Timespec, event: &DailyEvent, context: &Context) {
-        self.switch_depth = match context {
-            &ON => match self.switch_depth {
+    fn kick(&self, timestamp: &Timespec, event: &DailyEvent, context: &Context) {
+        self.switch_depth.set(match context {
+            &ON => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::On,
                 SwitchScheduleState::Off => SwitchScheduleState::On,
                 SwitchScheduleState::On => SwitchScheduleState::On
             },
-            &ON_WEAK => match self.switch_depth {
+            &ON_WEAK => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::Off,
                 SwitchScheduleState::Off => SwitchScheduleState::On,
                 SwitchScheduleState::On => SwitchScheduleState::On
             },
-            &OFF => match self.switch_depth {
+            &OFF => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::Off => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::On => SwitchScheduleState::Off
             },
-            &OFF_WEAK => match self.switch_depth {
+            &OFF_WEAK => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::DeepOff,
                 SwitchScheduleState::Off => SwitchScheduleState::Off,
                 SwitchScheduleState::On => SwitchScheduleState::Off
             },
             _ => unreachable!()
-        };
-        let new_state = match self.switch_depth {
+        });
+        let new_state = match self.switch_depth.get() {
             SwitchScheduleState::DeepOff | SwitchScheduleState::Off => SwitchState::Off,
             SwitchScheduleState::On => SwitchState::On
         };
-        if new_state != self.cur_state {
+        if new_state != self.cur_state.get() {
             let action = match new_state {
                 SwitchState::Off => "off:",
                 SwitchState::On => "on:"
             };
             println!("{} {:5}{} {:?}", self.id, action, at_utc(*timestamp).rfc822(), event);
-            self.cur_state = new_state;
+            self.cur_state.set(new_state);
         }
     }
 }

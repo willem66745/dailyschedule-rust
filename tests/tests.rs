@@ -13,27 +13,27 @@ const ONE: Context = Context(1);
 const TWO: Context = Context(2);
 
 struct TestHandler {
-    timestamps: Vec<time::Timespec>,
-    contexts: Vec<Context>
+    timestamps: RefCell<Vec<time::Timespec>>,
+    contexts: RefCell<Vec<Context>>
 }
 
 impl TestHandler {
     fn new() -> TestHandler {
         TestHandler {
-            timestamps: vec![],
-            contexts: vec![]
+            timestamps: RefCell::new(vec![]),
+            contexts: RefCell::new(vec![])
         }
     }
 
-    fn as_ref() -> Rc<RefCell<TestHandler>> {
-        Rc::new(RefCell::new(TestHandler::new()))
+    fn as_ref() -> Rc<TestHandler> {
+        Rc::new(TestHandler::new())
     }
 }
 
 impl Handler for TestHandler {
-    fn kick(&mut self, timestamp: &time::Timespec, _: &DailyEvent, context: &Context) {
-        self.timestamps.push((*timestamp).clone());
-        self.contexts.push(*context);
+    fn kick(&self, timestamp: &time::Timespec, _: &DailyEvent, context: &Context) {
+        self.timestamps.borrow_mut().push((*timestamp).clone());
+        self.contexts.borrow_mut().push(*context);
     }
 }
 
@@ -62,7 +62,7 @@ fn fixed_one_day_nodst() {
     assert_eq!(next_event, None);
 
     // handler must have captured 1 timestamp
-    let timestamps = &handler.borrow().timestamps;
+    let timestamps = &handler.timestamps.borrow();
     assert_eq!(timestamps.len(), 1);
     assert_eq!(*timestamps.iter().nth(0).unwrap(), time::Timespec::new(7200, 0));
 }
@@ -92,7 +92,7 @@ fn fuzzy_one_day_nodst() {
 
     assert_eq!(next_event_none, None);
 
-    let timestamps = &handler.borrow().timestamps;
+    let timestamps = &handler.timestamps.borrow();
     assert_eq!(timestamps.len(), 1);
     assert_eq!(*timestamps.iter().nth(0).unwrap(), next_event);
 }
@@ -122,7 +122,7 @@ fn byclosure_one_day_nodst() {
 
     assert_eq!(next_event_none, None);
 
-    let timestamps = &handler.borrow().timestamps;
+    let timestamps = &handler.timestamps.borrow();
     assert_eq!(timestamps.len(), 1);
     assert_eq!(*timestamps.iter().nth(0).unwrap(), next_event);
 }
@@ -164,11 +164,11 @@ fn contexts_nodst() {
     }
 
     // check the handler whether all expected contexts has been passed
-    assert_eq!(handler.borrow().contexts.iter().cloned().collect::<Vec<Context>>(),
+    assert_eq!(handler.contexts.borrow().iter().cloned().collect::<Vec<Context>>(),
                [ONE, TWO, ONE, ONE, TWO, ONE, ONE, TWO, ONE]);
 
     // check the handler whather all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(2),
                 ref_time + time::Duration::hours(3),
                 ref_time + time::Duration::hours(4),
@@ -217,11 +217,11 @@ fn overlapping_order_nodst() {
     }
 
     // check the handler whether all expected contexts has been passed
-    assert_eq!(handler.borrow().contexts.iter().cloned().collect::<Vec<Context>>(),
+    assert_eq!(handler.contexts.borrow().iter().cloned().collect::<Vec<Context>>(),
                [ONE, TWO, ONE, ONE, TWO, ONE, ONE, TWO, ONE]);
 
     // check the handler whether all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(2),
                 ref_time + time::Duration::hours(2),
                 ref_time + time::Duration::hours(2),
@@ -263,7 +263,7 @@ fn weekend() {
     }
 
     // check the handler whether all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(2) + time::Duration::days(2),   // 2 days after Thursday
                 ref_time + time::Duration::hours(2) + time::Duration::days(3)]); // 3 days after Thursday
 }
@@ -298,7 +298,7 @@ fn weekdays() {
     }
 
     // check the handler whether all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(2) + time::Duration::days(0),
                 ref_time + time::Duration::hours(2) + time::Duration::days(1), // day 2 and day 3
                 ref_time + time::Duration::hours(2) + time::Duration::days(4), // is weekend after EPOCH
@@ -348,7 +348,7 @@ fn to_dst_no_overlap() {
     }
 
     // check the handler whether all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(1) + time::Duration::days(0),
                 ref_time + time::Duration::hours(5) + time::Duration::days(0),
                 ref_time + time::Duration::hours(1) + time::Duration::days(1),
@@ -402,7 +402,7 @@ fn to_dst_overlap() {
     }
 
     // check the handler whether all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(0) + time::Duration::days(0),
                 ref_time + time::Duration::hours(1) + time::Duration::days(0),
                 ref_time + time::Duration::hours(0) + time::Duration::days(1),
@@ -415,7 +415,7 @@ fn to_dst_overlap() {
                 ref_time + time::Duration::hours(0) + time::Duration::days(4)]);
 
     // check the handler whether all expected contexts has been passed
-    assert_eq!(handler.borrow().contexts.iter().cloned().collect::<Vec<Context>>(),
+    assert_eq!(handler.contexts.borrow().iter().cloned().collect::<Vec<Context>>(),
                [TWO,
                 ONE,
                 TWO,
@@ -469,7 +469,7 @@ fn from_dst_no_overlap() {
     }
 
     // check the handler whether all expected timestamps has been passed
-    assert_eq!(handler.borrow().timestamps.iter().cloned().collect::<Vec<time::Timespec>>(),
+    assert_eq!(handler.timestamps.borrow().iter().cloned().collect::<Vec<time::Timespec>>(),
                [ref_time + time::Duration::hours(0) + time::Duration::days(0),
                 ref_time + time::Duration::hours(5) + time::Duration::days(0),
                 ref_time + time::Duration::hours(0) + time::Duration::days(1),
