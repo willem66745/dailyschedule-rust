@@ -54,7 +54,10 @@ impl PrintAction {
 }
 
 impl Handler<Context> for PrintAction {
-    fn kick(&self, timestamp: &Timespec, event: &DailyEvent, context: &Context) {
+    fn hint(&self, _: &Timespec, _: &Context) {
+    }
+
+    fn kick(&self, timestamp: &Timespec, context: &Context) {
         self.switch_depth.set(match context {
             &Context::On => match self.switch_depth.get() {
                 SwitchScheduleState::DeepOff => SwitchScheduleState::On,
@@ -86,7 +89,7 @@ impl Handler<Context> for PrintAction {
                 SwitchState::Off => "off:",
                 SwitchState::On => "on:"
             };
-            println!("{} {:5}{} {:?}", self.id, action, at_utc(*timestamp).rfc822(), event);
+            println!("{} {:5}{}", self.id, action, at_utc(*timestamp).rfc822());
             self.cur_state.set(new_state);
         }
     }

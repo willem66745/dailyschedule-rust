@@ -234,8 +234,10 @@ impl<C: Eq+PartialEq, H: Handler<C>> Event<C, H> {
 
 /// Trait to be implemented by the event handler
 pub trait Handler<C: Eq + PartialEq> {
+    /// Hint for future events
+    fn hint(&self, timestamp: &Timespec, context: &C);
     /// Perform a action (in a day)
-    fn kick(&self, timestamp: &Timespec, event: &DailyEvent, kick: &C);
+    fn kick(&self, timestamp: &Timespec, context: &C);
 }
 
 /// Calculates and executes scheduled events every day
@@ -310,6 +312,8 @@ impl<C: Eq + PartialEq, H: Handler<C>> Schedule<C, H> {
         for event in &self.events {
             let timestamp = event.create_timestamp(ut_midnight_reference, &self.localtime);
             if let Some(timestamp) = timestamp {
+                event.action.hint(&timestamp, &event.context);
+
                 let event_cloned = event.clone();
 
                 if self.schedule.contains_key(&timestamp) {
@@ -329,7 +333,7 @@ impl<C: Eq + PartialEq, H: Handler<C>> Schedule<C, H> {
         if let Some(timestamp) = past_events.last() {
             if let Some(schedule_events) = self.schedule.get(timestamp) {
                 for schedule_event in schedule_events {
-                    schedule_event.action.kick(&timestamp, &schedule_event.moment, &schedule_event.context);
+                    schedule_event.action.kick(&timestamp, &schedule_event.context);
                 }
             }
         }

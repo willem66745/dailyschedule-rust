@@ -16,6 +16,7 @@ enum Context {
 }
 
 struct TestHandler {
+    hints: RefCell<Vec<time::Timespec>>,
     timestamps: RefCell<Vec<time::Timespec>>,
     contexts: RefCell<Vec<Context>>
 }
@@ -23,6 +24,7 @@ struct TestHandler {
 impl TestHandler {
     fn new() -> TestHandler {
         TestHandler {
+            hints: RefCell::new(vec![]),
             timestamps: RefCell::new(vec![]),
             contexts: RefCell::new(vec![])
         }
@@ -34,7 +36,12 @@ impl TestHandler {
 }
 
 impl Handler<Context> for TestHandler {
-    fn kick(&self, timestamp: &time::Timespec, _: &DailyEvent, context: &Context) {
+    fn hint(&self, timestamp: &time::Timespec, _: &Context) {
+        self.hints.borrow_mut().push((*timestamp).clone());
+    }
+
+    fn kick(&self, timestamp: &time::Timespec, context: &Context) {
+        assert!(self.hints.borrow().contains(timestamp));
         self.timestamps.borrow_mut().push((*timestamp).clone());
         self.contexts.borrow_mut().push(*context);
     }
