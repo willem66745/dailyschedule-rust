@@ -184,7 +184,7 @@ struct Event<'a, H: Handler + 'a> {
     /// A moment in a day
     moment: DailyEvent<'a>, 
     /// Reference to a action handler
-    action: &'a RefCell<H>,
+    action: Rc<RefCell<H>>,
     /// Externally provided reference for the implementor
     context: Context
 }
@@ -278,7 +278,7 @@ impl<'a, H: Handler + 'a> Schedule<'a, H> {
     /// Add a (abstract) moment and action in a day
     pub fn add_event(&mut self,
                      moment: DailyEvent<'a>,
-                     action: &'a RefCell<H>,
+                     action: Rc<RefCell<H>>,
                      context: Context) {
         self.events.push(Rc::new(Event {
             moment: moment,

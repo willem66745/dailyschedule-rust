@@ -5,6 +5,7 @@ extern crate zoneinfo;
 
 use dailyschedule::*;
 use std::cell::RefCell;
+use std::rc::Rc;
 use zoneinfo::ZoneInfo;
 
 const DUMMY: Context = Context(0);
@@ -24,8 +25,8 @@ impl TestHandler {
         }
     }
 
-    fn as_ref() -> RefCell<TestHandler> {
-        RefCell::new(TestHandler::new())
+    fn as_ref() -> Rc<RefCell<TestHandler>> {
+        Rc::new(RefCell::new(TestHandler::new()))
     }
 }
 
@@ -44,7 +45,7 @@ fn fixed_one_day_nodst() {
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         DUMMY);
     schedule.update_schedule(time::Timespec::new(0, 0));
 
@@ -74,7 +75,7 @@ fn fuzzy_one_day_nodst() {
 
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::Always, Moment::new(2,0,0), Moment::new(3,0,0)),
-        &handler,
+        handler.clone(),
         DUMMY);
     schedule.update_schedule(time::Timespec::new(0, 0));
 
@@ -105,7 +106,7 @@ fn byclosure_one_day_nodst() {
 
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
-        &handler,
+        handler.clone(),
         DUMMY);
     schedule.update_schedule(time::Timespec::new(0, 0));
 
@@ -134,15 +135,15 @@ fn contexts_nodst() {
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         ONE);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(3,0,0)),
-        &handler,
+        handler.clone(),
         TWO);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(4,0,0)),
-        &handler,
+        handler.clone(),
         ONE);
 
     let ref_time = time::Timespec::new(0, 0);
@@ -187,15 +188,15 @@ fn overlapping_order_nodst() {
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         ONE);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         TWO);
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         ONE);
 
     let ref_time = time::Timespec::new(0, 0);
@@ -240,7 +241,7 @@ fn weekend() {
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::Weekend, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         DUMMY);
 
     // note: EPOCH was a Thursday
@@ -275,7 +276,7 @@ fn weekdays() {
 
     schedule.add_event(
         DailyEvent::Fixed(Filter::MonToFri, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         DUMMY);
 
     // note: EPOCH was a Thursday
@@ -316,12 +317,12 @@ fn to_dst_no_overlap() {
     // create event based on local time (@ Match 29th 2015 the exact transition moment)
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         DUMMY);
     // create event based on UTC (provided by closure)
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
-        &handler,
+        handler.clone(),
         DUMMY);
 
     // March 27th 2015 (two days before DST transition in EU)
@@ -370,12 +371,12 @@ fn to_dst_overlap() {
     // create event based on local time (@ Match 29th 2015 the exact transition moment)
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         ONE);
     // create event based on UTC (provided by closure)
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
-        &handler,
+        handler.clone(),
         TWO);
 
     // March 27th 2015 (two days before DST transition in EU)
@@ -437,12 +438,12 @@ fn from_dst_no_overlap() {
     // create event based on local time (@ Match 29th 2015 the exact transition moment)
     schedule.add_event(
         DailyEvent::Fixed(Filter::Always, Moment::new(2,0,0)),
-        &handler,
+        handler.clone(),
         DUMMY);
     // create event based on UTC (provided by closure)
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
-        &handler,
+        handler.clone(),
         DUMMY);
 
     // October 23th 2015 (two days before DST transition in EU)

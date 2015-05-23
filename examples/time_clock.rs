@@ -6,6 +6,7 @@ use dailyschedule::*;
 use time::{Timespec, at_utc, now_utc, Duration};
 use daylight::calculate_daylight;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 const ON: Context = Context(0); // always switch on
 const ON_WEAK: Context = Context(1); // switch on, except when 2x OFF (intended for dynamic end times)
@@ -42,8 +43,8 @@ impl PrintAction {
         }
     }
 
-    fn as_ref(name: &str) -> RefCell<PrintAction> {
-        RefCell::new(PrintAction::new(name))
+    fn as_ref(name: &str) -> Rc<RefCell<PrintAction>> {
+        Rc::new(RefCell::new(PrintAction::new(name)))
     }
 }
 
@@ -98,20 +99,20 @@ fn main() {
 
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::MonToFri, Moment::new(6,20,0), Moment::new(6,40,0)),
-        &action_handler_1,
+        action_handler_1.clone(),
         ON_WEAK);
     schedule.add_event(
         DailyEvent::ByClosure(Filter::MonToFri, &sunrise_closure, Duration::minutes(2)),
-        &action_handler_1,
+        action_handler_1.clone(),
         OFF);
 
     schedule.add_event(
         DailyEvent::ByClosure(Filter::Always, &sunset_closure, Duration::minutes(10)),
-        &action_handler_2,
+        action_handler_2.clone(),
         ON);
     schedule.add_event(
         DailyEvent::Fuzzy(Filter::Always, Moment::new(0,15,0), Moment::new(0,30,0)),
-        &action_handler_2,
+        action_handler_2.clone(),
         OFF_WEAK);
 
     let mut tm = now_utc();
