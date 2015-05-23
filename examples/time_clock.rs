@@ -89,8 +89,8 @@ impl Handler for PrintAction {
 }
 
 fn main() {
-    let sunrise_closure = |ts| Moment::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunrise);
-    let sunset_closure = |ts| Moment::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunset);
+    let sunrise_closure = Box::new(|ts| Moment::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunrise));
+    let sunset_closure = Box::new(|ts| Moment::new_from_timespec(calculate_daylight(at_utc(ts), LAT, LONG).sunset));
 
     let action_handler_1 = PrintAction::as_ref("1");
     let action_handler_2 = PrintAction::as_ref("2");
@@ -102,12 +102,12 @@ fn main() {
         action_handler_1.clone(),
         ON_WEAK);
     schedule.add_event(
-        DailyEvent::ByClosure(Filter::MonToFri, &sunrise_closure, Duration::minutes(2)),
+        DailyEvent::ByClosure(Filter::MonToFri, sunrise_closure, Duration::minutes(2)),
         action_handler_1.clone(),
         OFF);
 
     schedule.add_event(
-        DailyEvent::ByClosure(Filter::Always, &sunset_closure, Duration::minutes(10)),
+        DailyEvent::ByClosure(Filter::Always, sunset_closure, Duration::minutes(10)),
         action_handler_2.clone(),
         ON);
     schedule.add_event(

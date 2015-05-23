@@ -159,16 +159,16 @@ impl Filter {
 }
 
 /// Represent a (abstract) moment in a day
-pub enum DailyEvent<'a> {
+pub enum DailyEvent {
     /// A fixed moment in a day
     Fixed(Filter, Moment),
     /// A random moment between two given fixed moments
     Fuzzy(Filter, Moment, Moment),
     /// A externally provided moment in time + variance
-    ByClosure(Filter, &'a Fn(Timespec) -> Moment, Duration)
+    ByClosure(Filter, Box<Fn(Timespec) -> Moment>, Duration)
 }
 
-impl<'a> std::fmt::Debug for DailyEvent<'a> {
+impl std::fmt::Debug for DailyEvent {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             &DailyEvent::Fixed(_, ref t) => write!(fmt, "Fixed {:?}", t),
@@ -180,16 +180,16 @@ impl<'a> std::fmt::Debug for DailyEvent<'a> {
 }
 
 /// Represents a moment and an specific action in a day
-struct Event<'a, H: Handler + 'a> {
+struct Event<H: Handler> {
     /// A moment in a day
-    moment: DailyEvent<'a>, 
+    moment: DailyEvent, 
     /// Reference to a action handler
     action: Rc<RefCell<H>>,
     /// Externally provided reference for the implementor
     context: Context
 }
 
-impl<'a, H: Handler + 'a> Event<'a, H> {
+impl<H: Handler> Event<H> {
     /// Determine time-stamp for event
     fn create_timestamp(&self, ut_midnight_reference: Timespec,
                         localtime: &LocalTimeState) -> Option<Timespec> {
@@ -244,9 +244,9 @@ pub trait Handler {
 }
 
 /// Calculates and executes scheduled events every day
-pub struct Schedule<'a, H: Handler + 'a> {
+pub struct Schedule<H: Handler> {
     // List of (abstract) moments in a day
-    events: Vec<Rc<Event<'a, H>>>,
+    events: Vec<Rc<Event<H>>>,
 
     // Time zone related information
     zoneinfo: ZoneInfo,
@@ -255,12 +255,12 @@ pub struct Schedule<'a, H: Handler + 'a> {
     localtime: LocalTimeState,
 
     // Tree of actual scheduled moments and reference to the abstract moment in a day
-    schedule: BTreeMap<Timespec, Vec<Rc<Event<'a, H>>>>
+    schedule: BTreeMap<Timespec, Vec<Rc<Event<H>>>>
 }
 
-impl<'a, H: Handler + 'a> Schedule<'a, H> {
+impl<H: Handler> Schedule<H> {
     /// Create a (empty) list of scheduled daily events
-    pub fn new(zoneinfo: ZoneInfo) -> Schedule<'a, H> {
+    pub fn new(zoneinfo: ZoneInfo) -> Schedule<H> {
         Schedule {
             events: vec![],
             zoneinfo: zoneinfo,
@@ -271,13 +271,13 @@ impl<'a, H: Handler + 'a> Schedule<'a, H> {
 
     /// Create a (empty) list of scheduled daily events based on the default zoneinfo (local time
     /// settings)
-    pub fn new_local() -> Result<Schedule<'a, H>> {
+    pub fn new_local() -> Result<Schedule<H>> {
         Ok(Schedule::new(try!(ZoneInfo::get_local_zoneinfo())))
     }
 
     /// Add a (abstract) moment and action in a day
     pub fn add_event(&mut self,
-                     moment: DailyEvent<'a>,
+                     moment: DailyEvent,
                      action: Rc<RefCell<H>>,
                      context: Context) {
         self.events.push(Rc::new(Event {

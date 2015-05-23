@@ -99,13 +99,13 @@ fn fuzzy_one_day_nodst() {
 
 #[test]
 fn byclosure_one_day_nodst() {
-    let closure = |_| Moment::new(2,0,0);
+    let closure = Box::new(|_| Moment::new(2,0,0));
     let zoneinfo = ZoneInfo::by_tz("UTC").unwrap();
     let handler = TestHandler::as_ref();
     let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
 
     schedule.add_event(
-        DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
+        DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
         DUMMY);
     schedule.update_schedule(time::Timespec::new(0, 0));
@@ -309,7 +309,7 @@ fn weekdays() {
 
 #[test]
 fn to_dst_no_overlap() {
-    let closure = |ts| Moment::new_from_timespec(ts + time::Duration::hours(5));
+    let closure = Box::new(|ts| Moment::new_from_timespec(ts + time::Duration::hours(5)));
     let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
     let handler = TestHandler::as_ref();
     let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
@@ -321,7 +321,7 @@ fn to_dst_no_overlap() {
         DUMMY);
     // create event based on UTC (provided by closure)
     schedule.add_event(
-        DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
+        DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
         DUMMY);
 
@@ -363,7 +363,7 @@ fn to_dst_no_overlap() {
 
 #[test]
 fn to_dst_overlap() {
-    let closure = |ts| Moment::new_from_timespec(ts + time::Duration::hours(0));
+    let closure = Box::new(|ts| Moment::new_from_timespec(ts + time::Duration::hours(0)));
     let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
     let handler = TestHandler::as_ref();
     let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
@@ -375,7 +375,7 @@ fn to_dst_overlap() {
         ONE);
     // create event based on UTC (provided by closure)
     schedule.add_event(
-        DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
+        DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
         TWO);
 
@@ -430,7 +430,7 @@ fn to_dst_overlap() {
 
 #[test]
 fn from_dst_no_overlap() {
-    let closure = |ts| Moment::new_from_timespec(ts + time::Duration::hours(5));
+    let closure = Box::new(|ts| Moment::new_from_timespec(ts + time::Duration::hours(5)));
     let zoneinfo = ZoneInfo::by_tz("Europe/Amsterdam").unwrap(); // Same as CET in 2015
     let handler = TestHandler::as_ref();
     let mut schedule = Schedule::<TestHandler>::new(zoneinfo);
@@ -442,7 +442,7 @@ fn from_dst_no_overlap() {
         DUMMY);
     // create event based on UTC (provided by closure)
     schedule.add_event(
-        DailyEvent::ByClosure(Filter::Always, &closure, time::Duration::seconds(0)),
+        DailyEvent::ByClosure(Filter::Always, closure, time::Duration::seconds(0)),
         handler.clone(),
         DUMMY);
 
