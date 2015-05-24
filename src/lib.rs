@@ -330,8 +330,8 @@ impl<C: Eq + PartialEq, H: Handler<C>> Schedule<C, H> {
         let past_events: Vec<Timespec> = self.schedule.keys().filter(|&k| *k <= now).cloned().collect();
 
         // kick the current event...
-        if let Some(timestamp) = past_events.last() {
-            if let Some(schedule_events) = self.schedule.get(timestamp) {
+        for timestamp in past_events.iter() {
+            if let Some(schedule_events) = self.schedule.get(&timestamp) {
                 for schedule_event in schedule_events {
                     schedule_event.action.kick(&timestamp, &schedule_event.context);
                 }
