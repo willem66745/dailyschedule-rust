@@ -159,7 +159,7 @@ fn contexts_nodst() {
     let ref_time = time::Timespec::new(0, 0);
 
     // schedule events for 3 days
-    for days in (0..3) {
+    for days in 0..3 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
@@ -212,7 +212,7 @@ fn overlapping_order_nodst() {
     let ref_time = time::Timespec::new(0, 0);
 
     // schedule events for 3 days
-    for days in (0..3) {
+    for days in 0..3 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
@@ -258,7 +258,7 @@ fn weekend() {
     let ref_time = time::Timespec::new(0, 0);
 
     // schedule events for 8 days
-    for days in (0..8) {
+    for days in 0..8 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
@@ -293,7 +293,7 @@ fn weekdays() {
     let ref_time = time::Timespec::new(0, 0);
 
     // schedule events for 8 days
-    for days in (0..8) {
+    for days in 0..8 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
@@ -343,7 +343,7 @@ fn to_dst_no_overlap() {
     let ref_time = ref_time.to_timespec();
 
     // schedule events for 5 days
-    for days in (0..5) {
+    for days in 0..5 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
@@ -397,7 +397,7 @@ fn to_dst_overlap() {
     let ref_time = ref_time.to_timespec();
 
     // schedule events for 5 days
-    for days in (0..5) {
+    for days in 0..5 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
@@ -464,7 +464,7 @@ fn from_dst_no_overlap() {
     let ref_time = ref_time.to_timespec();
 
     // schedule events for 5 days
-    for days in (0..5) {
+    for days in 0..5 {
         schedule.update_schedule(ref_time + time::Duration::days(days));
     }
 
