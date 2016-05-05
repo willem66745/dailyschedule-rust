@@ -15,7 +15,7 @@ extern crate zoneinfo;
 use time::{Timespec, Duration, at_utc};
 use std::collections::BTreeMap;
 use std::rc::Rc;
-use rand::{Rng, thread_rng};
+use rand::Rng;
 use zoneinfo::{ZoneInfo, ZoneInfoElement};
 use std::io::Result;
 
